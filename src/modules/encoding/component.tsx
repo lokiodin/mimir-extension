@@ -1,17 +1,73 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   OPERATIONS,
   type OperationId,
 } from "@/modules/encoding/operations";
+import { storageGet, storageSet } from "@/storage/manager";
 
 const GROUP_ORDER = ["Base64", "Hex", "URL", "HTML", "JWT"] as const;
+const STORAGE_KEY = "encoding.state";
+const PERSIST_DEBOUNCE_MS = 250;
 
 type CopyTarget = "input" | "output";
+
+interface PersistedState {
+  operationId: OperationId;
+  input: string;
+}
+
+function isPersistedState(value: unknown): value is PersistedState {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.input !== "string") return false;
+  if (typeof v.operationId !== "string") return false;
+  return OPERATIONS.some((o) => o.id === v.operationId);
+}
 
 export const EncodingComponent: React.FC = () => {
   const [operationId, setOperationId] = useState<OperationId>("base64-encode");
   const [input, setInput] = useState<string>("");
   const [copied, setCopied] = useState<CopyTarget | null>(null);
+  const [hydrated, setHydrated] = useState<boolean>(false);
+  const persistTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    storageGet<unknown>(STORAGE_KEY)
+      .then((raw) => {
+        if (cancelled) return;
+        if (isPersistedState(raw)) {
+          setOperationId(raw.operationId);
+          setInput(raw.input);
+        }
+        setHydrated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (persistTimer.current !== null) {
+      window.clearTimeout(persistTimer.current);
+    }
+    persistTimer.current = window.setTimeout(() => {
+      void storageSet(STORAGE_KEY, {
+        operationId,
+        input,
+      } satisfies PersistedState);
+    }, PERSIST_DEBOUNCE_MS);
+    return () => {
+      if (persistTimer.current !== null) {
+        window.clearTimeout(persistTimer.current);
+        persistTimer.current = null;
+      }
+    };
+  }, [hydrated, operationId, input]);
 
   const { output, error } = useMemo<{
     output: string;
