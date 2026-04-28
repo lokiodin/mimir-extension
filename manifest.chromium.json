@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Mimir",
+  "version": "1.0.0",
+  "description": "Cybersecurity toolkit — encoding, CTI, log analysis, redaction, payloads",
+  "permissions": ["storage", "contextMenus", "activeTab"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mimir"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

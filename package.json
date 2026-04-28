@@ -1,0 +1,52 @@
+{
+  "name": "mimir-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser extension for cybersecurity professionals — encoding, CTI, log analysis, redaction, payloads",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "webpack serve --config webpack.chromium.ts",
+    "build:chromium": "webpack --mode production --config webpack.chromium.ts",
+    "build:firefox": "webpack --mode production --config webpack.firefox.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.68.0",
+    "mermaid": "^11.4.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.4",
+    "@types/chrome": "^0.0.304",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.25.1",
+    "fast-check": "^4.1.1",
+    "html-webpack-plugin": "^5.6.3",
+    "postcss": "^8.5.3",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^4.1.4",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^3.1.2",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^7.0.2",
+    "webpack-dev-server": "^5.2.1",
+    "webpack-merge": "^6.0.1"
+  }
+}
