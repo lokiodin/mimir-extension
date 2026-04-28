@@ -1,3 +1,3 @@
 import { mount } from "../main";
 
-mount("root");
+mount("root", "window");

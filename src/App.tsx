@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { getModules } from "@/registry/loader";
+import { useMimirStore } from "@/store";
 
 const modules = getModules();
 
@@ -12,38 +13,64 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const App: React.FC = () => {
-  const [activeId, setActiveId] = useState(modules[0]?.id ?? "");
-  const activeModule = modules.find((m) => m.id === activeId);
+  const activeModuleId = useMimirStore((s) => s.activeModuleId);
+  const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
+  const surfaceKind = useMimirStore((s) => s.surfaceKind);
+
+  useEffect(() => {
+    if (activeModuleId === "" && modules.length > 0) {
+      setActiveModuleId(modules[0].id);
+    }
+  }, [activeModuleId, setActiveModuleId]);
+
+  const activeModule = modules.find((m) => m.id === activeModuleId);
+
+  const openWindow = () => {
+    chrome.runtime.sendMessage({ type: "open-window" });
+  };
 
   let currentCategory = "";
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
-      <nav className="w-48 border-r border-gray-700 p-2 overflow-y-auto">
-        <h1 className="text-lg font-bold px-2 py-1 mb-2">Mimir</h1>
-        {modules.map((mod) => {
-          const showHeader = mod.category !== currentCategory;
-          currentCategory = mod.category;
-          return (
-            <React.Fragment key={mod.id}>
-              {showHeader && (
-                <div className="text-xs text-gray-500 uppercase tracking-wide px-2 pt-3 pb-1">
-                  {CATEGORY_LABELS[mod.category] ?? mod.category}
-                </div>
-              )}
-              <button
-                onClick={() => setActiveId(mod.id)}
-                className={`block w-full text-left px-2 py-1 rounded text-sm ${
-                  activeId === mod.id
-                    ? "bg-gray-700 text-white"
-                    : "hover:bg-gray-800"
-                }`}
-              >
-                {mod.label}
-              </button>
-            </React.Fragment>
-          );
-        })}
+      <nav className="w-48 border-r border-gray-700 p-2 overflow-y-auto flex flex-col">
+        <div className="flex items-center justify-between px-2 py-1 mb-2">
+          <h1 className="text-lg font-bold">Mimir</h1>
+          {surfaceKind === "popup" && (
+            <button
+              onClick={openWindow}
+              title="Open in window"
+              className="text-xs text-gray-400 hover:text-white px-1"
+            >
+              &#x2197;
+            </button>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {modules.map((mod) => {
+            const showHeader = mod.category !== currentCategory;
+            currentCategory = mod.category;
+            return (
+              <React.Fragment key={mod.id}>
+                {showHeader && (
+                  <div className="text-xs text-gray-500 uppercase tracking-wide px-2 pt-3 pb-1">
+                    {CATEGORY_LABELS[mod.category] ?? mod.category}
+                  </div>
+                )}
+                <button
+                  onClick={() => setActiveModuleId(mod.id)}
+                  className={`block w-full text-left px-2 py-1 rounded text-sm ${
+                    activeModuleId === mod.id
+                      ? "bg-gray-700 text-white"
+                      : "hover:bg-gray-800"
+                  }`}
+                >
+                  {mod.label}
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
       </nav>
       <main className="flex-1 overflow-y-auto p-4">
         {activeModule ? (
