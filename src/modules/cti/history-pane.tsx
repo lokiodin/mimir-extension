@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useStorageRevision } from "@/storage/context";
 import { getCtiHistory } from "@/background/cti-history";
 import type { CtiResult, Verdict } from "@/background/cti-types";
-import { exportHistoryAsCsv } from "@/modules/cti/csv";
-
 const VERDICT_FILTERS: ReadonlyArray<"all" | Verdict> = [
   "all",
   "malicious",
@@ -90,13 +88,6 @@ export const HistoryPane: React.FC<HistoryPaneProps> = ({
             </option>
           ))}
         </select>
-        <button
-          onClick={() => exportHistoryAsCsv(entries)}
-          disabled={entries.length === 0}
-          className="text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-40 ml-auto"
-        >
-          Export CSV
-        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto border border-gray-700 rounded">

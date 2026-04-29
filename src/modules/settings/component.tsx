@@ -3,7 +3,8 @@ import { useSettings, useApiKey } from "@/storage/context";
 import { removeApiKey, removePrompt } from "@/storage/manager";
 import { PROMPT_DEFAULTS } from "@/prompts/defaults";
 import type { AiProviderConfig } from "@/storage/types";
-import { clearCtiHistory } from "@/background/cti-history";
+import { clearCtiHistory, getCtiHistory } from "@/background/cti-history";
+import { exportHistoryAsCsv } from "@/modules/cti/csv";
 
 const DETECTOR_PLACEHOLDERS = [
   "IPv4",
@@ -283,7 +284,17 @@ export const SettingsComponent: React.FC = () => {
             Entries older than this are marked stale. Click a stale entry to
             refresh.
           </p>
-          <div className="pt-2 mt-2 border-t border-gray-700">
+          <div className="pt-2 mt-2 border-t border-gray-700 flex gap-2">
+            <button
+              onClick={async () => {
+                const entries = await getCtiHistory();
+                if (entries.length === 0) return;
+                exportHistoryAsCsv(entries);
+              }}
+              className="px-3 py-1 bg-gray-800 border border-gray-700 text-gray-100 rounded text-xs hover:bg-gray-700"
+            >
+              Export CSV
+            </button>
             <button
               onClick={async () => {
                 if (
