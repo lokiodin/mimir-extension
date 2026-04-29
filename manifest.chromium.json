@@ -3,11 +3,14 @@
   "name": "Mimir",
   "version": "1.0.0",
   "description": "Cybersecurity toolkit — encoding, CTI, log analysis, redaction, payloads",
-  "permissions": ["storage", "contextMenus", "activeTab"],
+  "permissions": ["storage", "contextMenus", "activeTab", "alarms"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Mimir"
   },
+  "host_permissions": [
+    "https://www.virustotal.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   }

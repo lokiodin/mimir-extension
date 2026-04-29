@@ -3,6 +3,7 @@ import { useSettings, useApiKey } from "@/storage/context";
 import { removeApiKey, removePrompt } from "@/storage/manager";
 import { PROMPT_DEFAULTS } from "@/prompts/defaults";
 import type { AiProviderConfig } from "@/storage/types";
+import { clearCtiHistory } from "@/background/cti-history";
 
 const DETECTOR_PLACEHOLDERS = [
   "IPv4",
@@ -281,6 +282,22 @@ export const SettingsComponent: React.FC = () => {
             Entries older than this are marked stale. Click a stale entry to
             refresh.
           </p>
+          <div className="pt-2 mt-2 border-t border-gray-700">
+            <button
+              onClick={async () => {
+                if (
+                  window.confirm(
+                    "Clear all CTI history? This wipes both the audit log and cached responses.",
+                  )
+                ) {
+                  await clearCtiHistory();
+                }
+              }}
+              className="px-3 py-1 bg-red-900 text-red-100 rounded text-xs hover:bg-red-800"
+            >
+              Clear CTI history
+            </button>
+          </div>
         </div>
       </Section>
 
