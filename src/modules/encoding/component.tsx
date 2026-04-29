@@ -6,7 +6,7 @@ import {
   type TextTransform,
 } from "@/components/TextTransformPanel";
 
-const STORAGE_KEY = "encoding.state";
+const STORAGE_KEY = "modules.encoding";
 const PERSIST_DEBOUNCE_MS = 250;
 
 interface PersistedState {

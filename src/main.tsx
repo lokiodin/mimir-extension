@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { useMimirStore } from "./store";
+import { StorageProvider } from "./storage/context";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -20,9 +21,11 @@ export function mount(
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <StorageProvider>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </StorageProvider>
     </React.StrictMode>,
   );
 }

@@ -260,6 +260,7 @@ Single `StorageManager` facade over `chrome.storage.local`. Keys are namespaced:
 settings.*                — user preferences, AI provider config, detector toggles
 settings.contextMenu.*    — per-action enable/disable toggles, keyed by module id
 apikeys.*                 — provider API keys (plaintext; documented in PRD)
+modules.*                 — per-module UI state (session restoration); keyed by module id
 cti.history.*             — unified CTI lookup store (audit log + response cache, 100 max, LRU)
 analysis.history.*        — Log Analysis history (last 10 runs)
 prompts.*                 — user-customized system prompts
@@ -359,6 +360,7 @@ Distribution: GitHub releases with the unpacked builds and zips. Manual install 
 │   │   ├── cti/
 │   │   ├── analysis/            # Log analysis
 │   │   ├── redaction/
+│   │   ├── settings/            # Settings module
 │   │   └── payloads/
 │   ├── redaction/
 │   │   ├── detectors/           # One file per detector
@@ -368,7 +370,12 @@ Distribution: GitHub releases with the unpacked builds and zips. Manual install 
 │   │   ├── loader.ts            # webpack-time scanner
 │   │   └── types.ts             # MimirModule interface
 │   ├── storage/
-│   │   └── manager.ts
+│   │   ├── manager.ts             # Chrome.storage.local facade
+│   │   ├── context.tsx            # StorageProvider, useSettings, useApiKey
+│   │   └── types.ts               # Settings, AiProviderConfig interfaces
+│   ├── prompts/
+│   │   ├── defaults.ts            # Built-in system prompts
+│   │   └── index.ts               # resolvePrompt() — two-layer lookup
 │   ├── surfaces/                # popup, window entries
 │   ├── browser-compat/          # Chromium/Firefox shim
 │   ├── App.tsx
