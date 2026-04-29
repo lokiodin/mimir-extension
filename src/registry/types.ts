@@ -5,7 +5,8 @@ export type ModuleCategory =
   | "cti"
   | "analysis"
   | "utilities"
-  | "payloads";
+  | "payloads"
+  | "settings";
 
 export interface MimirModule {
   id: string;

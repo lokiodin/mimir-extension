@@ -3,7 +3,7 @@ import { SettingsComponent } from "@/modules/settings/component";
 
 const settingsModule: MimirModule = {
   id: "settings",
-  category: "utilities",
+  category: "settings",
   label: "Settings",
   component: SettingsComponent,
 };

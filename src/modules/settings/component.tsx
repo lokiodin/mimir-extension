@@ -350,20 +350,58 @@ const ApiKeyField: React.FC<ApiKeyFieldProps> = ({
     <div className="space-y-1">
       <label className="text-sm text-gray-300 block">{label}</label>
       <div className="flex gap-2">
-        <input
-          type={showKey ? "text" : "password"}
-          value={tempValue}
-          onChange={(e) => setTempValue(e.target.value)}
-          placeholder={`Paste ${label} API key`}
-          disabled={loading}
-          className="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
-        />
-        <button
-          onClick={() => setShowKey(!showKey)}
-          className="px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-        >
-          {showKey ? "Hide" : "Show"}
-        </button>
+        <div className="relative flex-1">
+          <input
+            type={showKey ? "text" : "password"}
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            placeholder={`Paste ${label} API key`}
+            disabled={loading}
+            className="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 pr-8 text-sm"
+          />
+          <button
+            onClick={() => setShowKey(!showKey)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 flex items-center justify-center"
+            title={showKey ? "Hide" : "Show"}
+            type="button"
+          >
+            {showKey ? (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 1.657-.672 3.157-1.757 4.243A6 6 0 0121 12a9 9 0 00-1.5-5.009m0 0A9 9 0 003 12m18 0a9 9 0 01-18 0"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
         <button
           onClick={handleSave}
           disabled={loading}

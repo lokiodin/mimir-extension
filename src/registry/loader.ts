@@ -6,6 +6,7 @@ const CATEGORY_ORDER: ReadonlyArray<ModuleCategory> = [
   "cti",
   "analysis",
   "payloads",
+  "settings",
 ];
 
 function isMimirModule(value: unknown): value is MimirModule {
