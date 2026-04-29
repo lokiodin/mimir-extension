@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.4 |
-| Document Version | 2.3 |
+| Document Version | 2.4 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.4** — `TextTransformPanel` interface (§10.1) gains four optional fields populated by its first two callers: `group` and `inverse` on each transform (Encoding uses `group` for optgroups; Defang uses `inverse` so its bidirectional swap also flips to the paired transform), and controlled-input props `value`/`onValueChange` and `transformId`/`onTransformIdChange` (Encoding uses these to persist input across popup reopens). All four are optional and backwards-compatible with the v2.3 documented use case.
 - **2.3** — CTI cache and history collapsed into a single unified store (TTL = staleness, not deletion; LRU at 100). New §8 documents Log Analysis history (last 10 entries, FIFO). New §10.1 specifies the shared `TextTransformPanel` component for input-transform-output modules. Sections renumbered.
 - **2.2** — Right-click invocation always opens the popup (predictability over situational routing); CTI cache and history clarified as separate stores with combined "Clear CTI data" action; sidebar render order specified (category sequence, then alphabetical by label).
 - **2.1** — `MimirModule` interface gains optional `contextMenu` field; new §4.3 describes context-menu wiring and per-action user toggles; AI provider default behaviour clarified (empty field, placeholder text only); storage layout adds `settings.contextMenu.*`.
@@ -285,22 +286,37 @@ Mermaid rendering: client-side, in a try/catch that surfaces syntax errors as in
 Several modules — Encoding, Defang, eventually anything else built around an "input → transform → output" shape — share the same UI skeleton: a labeled input area, an action selector or button, an output area with copy-to-clipboard, optional bidirectional swap. Rather than duplicating that layout in each module, a single `<TextTransformPanel>` lives in `src/components/` and takes:
 
 ```typescript
+interface TextTransform {
+  id: string;
+  label: string;
+  fn: (input: string) => string | Promise<string>;
+  // Optional: render the selector as <optgroup> chunks. Used by Encoding to
+  // group Base64/Hex/URL/HTML/JWT operations.
+  group?: string;
+  // Optional: id of the paired transform. When `bidirectional` is true, the
+  // swap button moves output -> input AND switches the active transform to
+  // its inverse. Used by Defang (defang <-> refang).
+  inverse?: string;
+}
+
 interface TextTransformPanelProps {
   inputLabel?: string;
   outputLabel?: string;
-  transforms: Array<{
-    id: string;
-    label: string;
-    fn: (input: string) => string | Promise<string>;
-  }>;
+  transforms: ReadonlyArray<TextTransform>;
   defaultTransformId?: string;
   bidirectional?: boolean;       // shows a swap button if true
+  // Optional controlled-input mode. When omitted, the panel manages input
+  // and selected-transform state internally with `useState`. When provided,
+  // the parent owns state — used by Encoding to persist the input across
+  // popup reopens via chrome.storage.local.
+  value?: string;
+  onValueChange?: (value: string) => void;
+  transformId?: string;
+  onTransformIdChange?: (id: string) => void;
 }
 ```
 
 Modules that fit this shape become roughly: a `MimirModule` wrapper plus a few transform functions. Modules that don't fit (CTI with its provider results, Log Analysis with streaming markdown, Redaction with its multi-stage diff) keep their own bespoke UI — `TextTransformPanel` is a convenience for the simple cases, not a mandate.
-
-This component is not required for v1.0 to ship — it's an extraction that should happen as soon as the second or third transform-shaped module exists, to prevent layout drift between them.
 
 ## 11. Build & Distribution
 
