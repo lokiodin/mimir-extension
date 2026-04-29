@@ -3,12 +3,15 @@
 // so they survive worker restarts.
 
 import { lookupVirusTotal } from "@/background/cti-client";
+import { lookupAbuseIPDB } from "@/background/abuseipdb-client";
+import { lookupAbusech } from "@/background/abusech-client";
 import { upsertCtiHistory } from "@/background/cti-history";
 import { installKeepaliveListener } from "@/background/keepalive";
-import { getSettings } from "@/storage/manager";
+import { getApiKey, getSettings } from "@/storage/manager";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
+  CtiResult,
 } from "@/background/cti-types";
 
 installKeepaliveListener();
@@ -32,17 +35,39 @@ function isCtiLookupRequest(value: unknown): value is CtiLookupRequest {
 async function handleCtiLookup(
   req: CtiLookupRequest,
 ): Promise<CtiLookupResponse> {
-  if (req.provider !== "virustotal") {
-    return { ok: false, error: `Provider not yet supported: ${req.provider}` };
-  }
   try {
     const settings = await getSettings();
-    const result = await lookupVirusTotal({
-      indicator: req.indicator,
-      indicatorType: req.indicatorType,
-      query: req.query,
-      ttlHours: settings.ctiTtlHours,
-    });
+    let result: CtiResult;
+    switch (req.provider) {
+      case "virustotal":
+        result = await lookupVirusTotal({
+          indicator: req.indicator,
+          indicatorType: req.indicatorType,
+          query: req.query,
+          ttlHours: settings.ctiTtlHours,
+        });
+        break;
+      case "abuseipdb":
+        result = await lookupAbuseIPDB({
+          indicator: req.indicator,
+          indicatorType: req.indicatorType,
+          query: req.query,
+          ttlHours: settings.ctiTtlHours,
+        });
+        break;
+      case "abusech": {
+        const apiKey = await getApiKey("abusech");
+        result = await lookupAbusech({
+          indicator: req.indicator,
+          indicatorType: req.indicatorType,
+          query: req.query,
+          ttlHours: settings.ctiTtlHours,
+          mode: settings.abusechMode,
+          apiKey,
+        });
+        break;
+      }
+    }
     await upsertCtiHistory(result);
     return { ok: true, result };
   } catch (err) {

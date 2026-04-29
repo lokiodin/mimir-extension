@@ -250,6 +250,7 @@ export const SettingsComponent: React.FC = () => {
             provider="abusech"
             hint="Optional for API mode (web request mode uses no key)"
           />
+          <AbusechModeField />
         </div>
       </Section>
 
@@ -428,6 +429,46 @@ const ApiKeyField: React.FC<ApiKeyFieldProps> = ({
         </button>
       </div>
       <p className="text-xs text-gray-500">{hint}</p>
+    </div>
+  );
+};
+
+const AbusechModeField: React.FC = () => {
+  const [settings, updateSettings] = useSettings();
+  const [apiKey] = useApiKey("abusech");
+  if (!settings) return null;
+  const mode = settings.abusechMode;
+  const apiSelectedWithoutKey = mode === "api" && !apiKey;
+  return (
+    <div className="space-y-1">
+      <label className="text-sm text-gray-300 block">abuse.ch mode</label>
+      <div className="flex gap-3 text-sm text-gray-300">
+        <label className="flex items-center gap-1">
+          <input
+            type="radio"
+            name="abusech-mode"
+            value="web"
+            checked={mode === "web"}
+            onChange={() => updateSettings({ abusechMode: "web" })}
+          />
+          Web request (no key)
+        </label>
+        <label className="flex items-center gap-1">
+          <input
+            type="radio"
+            name="abusech-mode"
+            value="api"
+            checked={mode === "api"}
+            onChange={() => updateSettings({ abusechMode: "api" })}
+          />
+          API key
+        </label>
+      </div>
+      {apiSelectedWithoutKey && (
+        <p className="text-xs text-amber-400">
+          API mode selected but no key saved — abuse.ch lookups will be skipped.
+        </p>
+      )}
     </div>
   );
 };

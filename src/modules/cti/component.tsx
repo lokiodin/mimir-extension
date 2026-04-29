@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
+  CtiProvider,
   CtiResult,
   IndicatorType,
   Verdict,
 } from "@/background/cti-types";
 import { detectIndicatorType } from "@/modules/cti/detect";
 import { HistoryPane } from "@/modules/cti/history-pane";
+import { useApiKey, useSettings } from "@/storage/context";
+import { useMimirStore } from "@/store";
 
 type IndicatorChoice = "auto" | IndicatorType;
 
@@ -23,6 +26,18 @@ const INDICATOR_CHOICES: ReadonlyArray<{
   { value: "hash", label: "Hash" },
 ];
 
+const PROVIDERS: ReadonlyArray<CtiProvider> = [
+  "virustotal",
+  "abuseipdb",
+  "abusech",
+];
+
+const PROVIDER_LABELS: Record<CtiProvider, string> = {
+  virustotal: "VirusTotal",
+  abuseipdb: "AbuseIPDB",
+  abusech: "abuse.ch",
+};
+
 const VERDICT_BADGE_CLASS: Record<Verdict, string> = {
   malicious: "bg-red-900 text-red-100 border-red-700",
   suspicious: "bg-amber-900 text-amber-100 border-amber-700",
@@ -30,6 +45,14 @@ const VERDICT_BADGE_CLASS: Record<Verdict, string> = {
   unknown: "bg-gray-700 text-gray-200 border-gray-600",
   error: "bg-red-950 text-red-200 border-red-800",
 };
+
+type CardState =
+  | { kind: "idle" }
+  | { kind: "loading"; indicator: string }
+  | { kind: "result"; result: CtiResult }
+  | { kind: "error"; message: string }
+  | { kind: "not-applicable"; reason: string }
+  | { kind: "not-configured"; reason: string };
 
 function entryKey(e: CtiResult): string {
   return `${e.provider}:${e.indicatorType}:${e.indicator}`;
@@ -51,23 +74,115 @@ async function sendLookup(req: CtiLookupRequest): Promise<CtiResult> {
 export const CtiComponent: React.FC = () => {
   const [input, setInput] = useState<string>("");
   const [choice, setChoice] = useState<IndicatorChoice>("auto");
-  const [active, setActive] = useState<CtiResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const mutation = useMutation<CtiResult, Error, CtiLookupRequest>({
-    mutationFn: sendLookup,
-    onSuccess: (result) => {
-      setActive(result);
-      setErrorMessage(null);
-    },
-    onError: (err) => {
-      setErrorMessage(err.message);
-    },
+  const [cards, setCards] = useState<Record<CtiProvider, CardState>>({
+    virustotal: { kind: "idle" },
+    abuseipdb: { kind: "idle" },
+    abusech: { kind: "idle" },
   });
+  const [expanded, setExpanded] = useState<Record<CtiProvider, boolean>>({
+    virustotal: true,
+    abuseipdb: true,
+    abusech: true,
+  });
+
+  const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
+  const [settings] = useSettings();
+  const [abuseipdbKey] = useApiKey("abuseipdb");
+  const [abusechKey] = useApiKey("abusech");
+
+  const setCard = (provider: CtiProvider, state: CardState): void => {
+    setCards((prev) => ({ ...prev, [provider]: state }));
+  };
+
+  const vtMutation = useMutation<CtiResult, Error, CtiLookupRequest>({
+    mutationFn: sendLookup,
+    onSuccess: (result) => setCard("virustotal", { kind: "result", result }),
+    onError: (err) =>
+      setCard("virustotal", { kind: "error", message: err.message }),
+  });
+  const abuseipdbMutation = useMutation<CtiResult, Error, CtiLookupRequest>({
+    mutationFn: sendLookup,
+    onSuccess: (result) => setCard("abuseipdb", { kind: "result", result }),
+    onError: (err) =>
+      setCard("abuseipdb", { kind: "error", message: err.message }),
+  });
+  const abusechMutation = useMutation<CtiResult, Error, CtiLookupRequest>({
+    mutationFn: sendLookup,
+    onSuccess: (result) => setCard("abusech", { kind: "result", result }),
+    onError: (err) =>
+      setCard("abusech", { kind: "error", message: err.message }),
+  });
+
+  const mutations: Record<
+    CtiProvider,
+    typeof vtMutation
+  > = {
+    virustotal: vtMutation,
+    abuseipdb: abuseipdbMutation,
+    abusech: abusechMutation,
+  };
+
+  // Configuration check per provider for a given indicator type.
+  const evaluateProvider = (
+    provider: CtiProvider,
+    indicatorType: IndicatorType,
+  ): { run: true } | { run: false; state: CardState } => {
+    if (provider === "abuseipdb" && indicatorType !== "ip") {
+      return {
+        run: false,
+        state: {
+          kind: "not-applicable",
+          reason: "AbuseIPDB only supports IPs.",
+        },
+      };
+    }
+    if (provider === "abuseipdb" && !abuseipdbKey) {
+      return {
+        run: false,
+        state: { kind: "not-configured", reason: "API key not set." },
+      };
+    }
+    if (
+      provider === "abusech" &&
+      settings?.abusechMode === "api" &&
+      !abusechKey
+    ) {
+      return {
+        run: false,
+        state: {
+          kind: "not-configured",
+          reason: "API mode selected but no API key.",
+        },
+      };
+    }
+    return { run: true };
+  };
 
   const resolveType = (): IndicatorType | null => {
     if (choice !== "auto") return choice;
     return detectIndicatorType(input);
+  };
+
+  const runForProvider = (
+    provider: CtiProvider,
+    indicator: string,
+    indicatorType: IndicatorType,
+    query: string,
+  ): void => {
+    const decision = evaluateProvider(provider, indicatorType);
+    if (!decision.run) {
+      setCard(provider, decision.state);
+      return;
+    }
+    setCard(provider, { kind: "loading", indicator });
+    mutations[provider].mutate({
+      type: "cti.lookup",
+      provider,
+      indicatorType,
+      indicator,
+      query,
+    });
   };
 
   const handleLookup = (): void => {
@@ -81,30 +196,39 @@ export const CtiComponent: React.FC = () => {
       return;
     }
     setErrorMessage(null);
-    mutation.mutate({
-      type: "cti.lookup",
-      provider: "virustotal",
-      indicatorType,
-      indicator: trimmed.toLowerCase(),
-      query: trimmed,
-    });
+    const canonical = trimmed.toLowerCase();
+    for (const provider of PROVIDERS) {
+      runForProvider(provider, canonical, indicatorType, trimmed);
+    }
   };
 
   const handleHistorySelect = (entry: CtiResult): void => {
-    setActive(entry);
     setErrorMessage(null);
+    setCard(entry.provider, { kind: "result", result: entry });
+    setExpanded((prev) => ({ ...prev, [entry.provider]: true }));
   };
 
   const handleHistoryRefresh = (entry: CtiResult): void => {
     setErrorMessage(null);
-    mutation.mutate({
-      type: "cti.lookup",
-      provider: entry.provider,
-      indicatorType: entry.indicatorType,
-      indicator: entry.indicator,
-      query: entry.query,
-    });
+    runForProvider(
+      entry.provider,
+      entry.indicator,
+      entry.indicatorType,
+      entry.query,
+    );
   };
+
+  const anyLoading = useMemo(
+    () => PROVIDERS.some((p) => cards[p].kind === "loading"),
+    [cards],
+  );
+
+  const selectedKey = useMemo(() => {
+    const result = PROVIDERS.map((p) => cards[p])
+      .filter((s): s is { kind: "result"; result: CtiResult } => s.kind === "result")
+      .map((s) => entryKey(s.result));
+    return result[0] ?? null;
+  }, [cards]);
 
   return (
     <div className="flex flex-col h-full gap-3">
@@ -133,10 +257,10 @@ export const CtiComponent: React.FC = () => {
         </select>
         <button
           onClick={handleLookup}
-          disabled={mutation.isPending || input.trim() === ""}
+          disabled={anyLoading || input.trim() === ""}
           className="px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800 disabled:opacity-50"
         >
-          {mutation.isPending ? "Looking up..." : "Lookup"}
+          {anyLoading ? "Looking up..." : "Lookup"}
         </button>
       </div>
 
@@ -149,24 +273,170 @@ export const CtiComponent: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
-        <div className="flex flex-col min-h-0 overflow-y-auto">
-          {active ? (
-            <ResultView entry={active} />
-          ) : (
-            <p className="text-sm text-gray-500">
-              Run a lookup or pick an entry from history to see results.
-            </p>
-          )}
+      <div
+        className="grid gap-3 flex-1 min-h-0"
+        style={{ gridTemplateColumns: "2fr 1fr" }}
+      >
+        <div className="flex flex-col gap-2 min-h-0 min-w-0 overflow-y-auto">
+          {PROVIDERS.map((provider) => (
+            <ProviderCard
+              key={provider}
+              provider={provider}
+              state={cards[provider]}
+              expanded={expanded[provider]}
+              onToggleExpanded={() =>
+                setExpanded((prev) => ({
+                  ...prev,
+                  [provider]: !prev[provider],
+                }))
+              }
+              onOpenSettings={() => setActiveModuleId("settings")}
+            />
+          ))}
         </div>
-        <HistoryPane
-          onSelect={handleHistorySelect}
-          onRefresh={handleHistoryRefresh}
-          selectedKey={active ? entryKey(active) : null}
-        />
+        <div className="min-w-0">
+          <HistoryPane
+            onSelect={handleHistorySelect}
+            onRefresh={handleHistoryRefresh}
+            selectedKey={selectedKey}
+          />
+        </div>
       </div>
     </div>
   );
+};
+
+interface ProviderCardProps {
+  provider: CtiProvider;
+  state: CardState;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onOpenSettings: () => void;
+}
+
+const ProviderCard: React.FC<ProviderCardProps> = ({
+  provider,
+  state,
+  expanded,
+  onToggleExpanded,
+  onOpenSettings,
+}) => {
+  const verdict: Verdict | null =
+    state.kind === "result"
+      ? state.result.verdict
+      : state.kind === "error"
+        ? "error"
+        : null;
+
+  return (
+    <div className="border border-gray-700 rounded">
+      <button
+        type="button"
+        onClick={onToggleExpanded}
+        className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800"
+      >
+        <span className="text-gray-400 text-xs w-3">
+          {expanded ? "▼" : "▶"}
+        </span>
+        {verdict ? (
+          <span
+            className={`text-xs px-2 py-0.5 rounded border ${VERDICT_BADGE_CLASS[verdict]}`}
+          >
+            {verdict}
+          </span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded border bg-gray-800 text-gray-500 border-gray-700">
+            {stateBadgeLabel(state)}
+          </span>
+        )}
+        <span className="text-sm text-gray-200 font-medium">
+          {PROVIDER_LABELS[provider]}
+        </span>
+        <span className="ml-auto text-xs text-gray-500 truncate">
+          {previewLine(state)}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-3 py-2 border-t border-gray-800">
+          <CardBody state={state} onOpenSettings={onOpenSettings} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+function stateBadgeLabel(state: CardState): string {
+  switch (state.kind) {
+    case "idle":
+      return "idle";
+    case "loading":
+      return "loading";
+    case "not-applicable":
+      return "n/a";
+    case "not-configured":
+      return "no key";
+    case "error":
+      return "error";
+    case "result":
+      return state.result.verdict;
+  }
+}
+
+function previewLine(state: CardState): string {
+  switch (state.kind) {
+    case "idle":
+      return "Run a lookup to populate.";
+    case "loading":
+      return state.indicator;
+    case "not-applicable":
+      return state.reason;
+    case "not-configured":
+      return state.reason;
+    case "error":
+      return state.message;
+    case "result": {
+      const first = state.result.summary[0];
+      return first ? `${first.label}: ${first.value}` : state.result.indicator;
+    }
+  }
+}
+
+interface CardBodyProps {
+  state: CardState;
+  onOpenSettings: () => void;
+}
+
+const CardBody: React.FC<CardBodyProps> = ({ state, onOpenSettings }) => {
+  switch (state.kind) {
+    case "idle":
+      return (
+        <p className="text-sm text-gray-500">No lookup yet.</p>
+      );
+    case "loading":
+      return (
+        <p className="text-sm text-gray-400">Looking up {state.indicator}…</p>
+      );
+    case "not-applicable":
+      return <p className="text-sm text-gray-400">{state.reason}</p>;
+    case "not-configured":
+      return (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-gray-400">{state.reason}</p>
+          <button
+            onClick={onOpenSettings}
+            className="text-xs px-2 py-1 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
+          >
+            Open Settings
+          </button>
+        </div>
+      );
+    case "error":
+      return (
+        <p className="text-sm text-red-300 break-words">{state.message}</p>
+      );
+    case "result":
+      return <ResultView entry={state.result} />;
+  }
 };
 
 const ResultView: React.FC<{ entry: CtiResult }> = ({ entry }) => {
@@ -174,19 +444,14 @@ const ResultView: React.FC<{ entry: CtiResult }> = ({ entry }) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <span
-          className={`text-xs px-2 py-0.5 rounded border ${VERDICT_BADGE_CLASS[entry.verdict]}`}
-        >
-          {entry.verdict}
-        </span>
         <span className="font-mono text-sm text-gray-100 break-all">
           {entry.indicator}
         </span>
-        <span className="text-xs text-gray-500">
-          {entry.provider} · {entry.indicatorType}
-        </span>
+        <span className="text-xs text-gray-500">{entry.indicatorType}</span>
         {isStale && (
-          <span className="text-xs text-amber-400">stale — click to refresh</span>
+          <span className="text-xs text-amber-400">
+            stale — re-run to refresh
+          </span>
         )}
       </div>
       <div className="text-xs text-gray-500">
@@ -211,3 +476,4 @@ const ResultView: React.FC<{ entry: CtiResult }> = ({ entry }) => {
     </div>
   );
 };
+

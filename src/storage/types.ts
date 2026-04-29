@@ -6,10 +6,13 @@ export interface AiProviderConfig {
   model?: string; // optional, e.g. "llama3", "gpt-4o"
 }
 
+export type AbusechMode = "web" | "api";
+
 export interface Settings {
   aiProviders: AiProviderConfig[];
   defaultAiProviderId?: string; // fallback for all AI-using modules
   ctiTtlHours: number; // cache staleness threshold, default 72
+  abusechMode: AbusechMode; // hunting.abuse.ch auth mode (TECHNICAL_DESIGN.md §6)
   redactionDetectors: Record<string, boolean>; // detectorId -> enabled
   contextMenu: Record<string, boolean>; // moduleId -> enabled
 }
@@ -17,6 +20,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   aiProviders: [],
   ctiTtlHours: 72,
+  abusechMode: "web",
   redactionDetectors: {},
   contextMenu: {},
 };

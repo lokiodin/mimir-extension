@@ -9,7 +9,9 @@
     "default_title": "Mimir"
   },
   "host_permissions": [
-    "https://www.virustotal.com/*"
+    "https://www.virustotal.com/*",
+    "https://api.abuseipdb.com/*",
+    "https://threatfox-api.abuse.ch/*"
   ],
   "background": {
     "service_worker": "background.js"
