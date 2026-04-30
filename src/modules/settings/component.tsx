@@ -5,6 +5,57 @@ import { PROMPT_DEFAULTS } from "@/prompts/defaults";
 import type { AiProviderConfig } from "@/storage/types";
 import { clearCtiHistory, getCtiHistory } from "@/background/cti-history";
 import { exportHistoryAsCsv } from "@/modules/cti/csv";
+import { clearAnalysisHistory } from "@/modules/analysis/history";
+import type {
+  AiTestConnectionResponse,
+} from "@/background/ai-types";
+
+// AI provider API keys are namespaced by provider UUID (apikeys.ai.<id>)
+// so two providers of the same type (e.g. two OpenAI accounts) hold distinct keys.
+
+async function requestEndpointPermission(endpoint: string): Promise<boolean> {
+  const trimmed = endpoint.trim();
+  if (trimmed === "") return true;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return true;
+    const origin = `${url.protocol}//${url.host}/*`;
+    return await chrome.permissions.request({ origins: [origin] });
+  } catch {
+    return false;
+  }
+}
+
+interface SectionProps {
+  title: string;
+  id: string;
+  openSection: string | null;
+  onToggle: (id: string) => void;
+  children: React.ReactNode;
+}
+
+const Section: React.FC<SectionProps> = ({
+  title,
+  id,
+  openSection,
+  onToggle,
+  children,
+}) => (
+  <div className="border border-gray-700 rounded mb-3">
+    <button
+      onClick={() => onToggle(id)}
+      className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-800 transition-colors"
+    >
+      <h3 className="font-semibold text-gray-100">{title}</h3>
+      <span className="text-gray-400">{openSection === id ? "−" : "+"}</span>
+    </button>
+    {openSection === id && (
+      <div className="px-4 py-3 border-t border-gray-700 bg-gray-850">
+        {children}
+      </div>
+    )}
+  </div>
+);
 
 const DETECTOR_PLACEHOLDERS = [
   "IPv4",
@@ -22,6 +73,13 @@ const DETECTOR_PLACEHOLDERS = [
 ];
 
 const REDACTION_FEATURE_IDS = ["log-analysis", "redaction-ai"];
+
+const MODEL_PLACEHOLDERS: Record<AiProviderConfig["type"], string> = {
+  ollama: "llama3.2",
+  openai: "gpt-4o-mini",
+  anthropic: "claude-sonnet-4-6",
+  "openai-compatible": "Model name",
+};
 
 export const SettingsComponent: React.FC = () => {
   const [settings, updateSettings, settingsLoading] = useSettings();
@@ -88,120 +146,28 @@ export const SettingsComponent: React.FC = () => {
   };
 
 
-  const Section: React.FC<{
-    title: string;
-    id: string;
-    children: React.ReactNode;
-  }> = ({ title, id, children }) => (
-    <div className="border border-gray-700 rounded mb-3">
-      <button
-        onClick={() => toggleSection(id)}
-        className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-800 transition-colors"
-      >
-        <h3 className="font-semibold text-gray-100">{title}</h3>
-        <span className="text-gray-400">
-          {openSection === id ? "−" : "+"}
-        </span>
-      </button>
-      {openSection === id && (
-        <div className="px-4 py-3 border-t border-gray-700 bg-gray-850">
-          {children}
-        </div>
-      )}
-    </div>
-  );
+  const sectionProps = { openSection, onToggle: toggleSection };
 
   return (
     <div className="flex h-full flex-col gap-2 overflow-y-auto p-2">
       {/* AI Providers */}
-      <Section title="AI Providers" id="ai-providers">
+      <Section title="AI Providers" id="ai-providers" {...sectionProps}>
         <div className="space-y-3">
           {settings.aiProviders.length === 0 ? (
             <p className="text-sm text-gray-400">No AI providers configured.</p>
           ) : (
             <div className="space-y-2">
               {settings.aiProviders.map((provider) => (
-                <div key={provider.id} className="border border-gray-700 rounded p-2 bg-gray-800">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={provider.label}
-                          onChange={(e) =>
-                            updateAiProvider(provider.id, {
-                              label: e.target.value,
-                            })
-                          }
-                          placeholder="Provider name"
-                          className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-                        />
-                        <select
-                          value={provider.type}
-                          onChange={(e) =>
-                            updateAiProvider(provider.id, {
-                              type: e.target.value as AiProviderConfig["type"],
-                            })
-                          }
-                          className="bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-                        >
-                          <option value="ollama">Ollama</option>
-                          <option value="openai">OpenAI</option>
-                          <option value="anthropic">Anthropic</option>
-                          <option value="openai-compatible">
-                            OpenAI-compatible
-                          </option>
-                        </select>
-                      </div>
-                      <input
-                        type="text"
-                        value={provider.endpoint}
-                        onChange={(e) =>
-                          updateAiProvider(provider.id, {
-                            endpoint: e.target.value,
-                          })
-                        }
-                        placeholder="http://localhost:11434"
-                        className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-                      />
-                      {(provider.type === "openai" ||
-                        provider.type === "anthropic" ||
-                        provider.type === "openai-compatible") && (
-                        <input
-                          type="text"
-                          value={provider.model ?? ""}
-                          onChange={(e) =>
-                            updateAiProvider(provider.id, {
-                              model: e.target.value,
-                            })
-                          }
-                          placeholder="Model name (optional)"
-                          className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-                        />
-                      )}
-                    </div>
-                    <button
-                      onClick={() => removeAiProvider(provider.id)}
-                      className="ml-2 px-2 py-1 bg-red-900 text-red-100 rounded text-xs hover:bg-red-800"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <label className="text-xs text-gray-400 flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={
-                        settings.defaultAiProviderId === provider.id
-                      }
-                      onChange={(e) =>
-                        setDefaultAiProvider(
-                          e.target.checked ? provider.id : undefined,
-                        )
-                      }
-                    />
-                    Default provider
-                  </label>
-                </div>
+                <AiProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  isDefault={settings.defaultAiProviderId === provider.id}
+                  onUpdate={(updates) => updateAiProvider(provider.id, updates)}
+                  onRemove={() => removeAiProvider(provider.id)}
+                  onSetDefault={(checked) =>
+                    setDefaultAiProvider(checked ? provider.id : undefined)
+                  }
+                />
               ))}
             </div>
           )}
@@ -231,7 +197,7 @@ export const SettingsComponent: React.FC = () => {
       </Section>
 
       {/* API Keys */}
-      <Section title="API Keys" id="api-keys">
+      <Section title="API Keys" id="api-keys" {...sectionProps}>
         <div className="space-y-3">
           {/* VirusTotal */}
           <ApiKeyField
@@ -256,7 +222,7 @@ export const SettingsComponent: React.FC = () => {
       </Section>
 
       {/* System Prompts */}
-      <Section title="System Prompts" id="system-prompts">
+      <Section title="System Prompts" id="system-prompts" {...sectionProps}>
         <div className="space-y-4">
           {REDACTION_FEATURE_IDS.map((featureId) => (
             <PromptField key={featureId} featureId={featureId} />
@@ -264,8 +230,32 @@ export const SettingsComponent: React.FC = () => {
         </div>
       </Section>
 
+      {/* Log Analysis */}
+      <Section title="Log Analysis" id="log-analysis-settings" {...sectionProps}>
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">
+            History keeps the last 10 analyses (input + AI response + provider).
+            Clearing wipes the store in one operation.
+          </p>
+          <button
+            onClick={async () => {
+              if (
+                window.confirm(
+                  "Clear all log analysis history? This wipes stored AI responses for previous runs.",
+                )
+              ) {
+                await clearAnalysisHistory();
+              }
+            }}
+            className="px-3 py-1 bg-red-900 text-red-100 rounded text-xs hover:bg-red-800"
+          >
+            Clear log analysis history
+          </button>
+        </div>
+      </Section>
+
       {/* CTI Settings */}
-      <Section title="CTI Settings" id="cti-settings">
+      <Section title="CTI Settings" id="cti-settings" {...sectionProps}>
         <div className="space-y-2">
           <label className="text-sm text-gray-300 block">
             Cache TTL (hours)
@@ -314,7 +304,7 @@ export const SettingsComponent: React.FC = () => {
       </Section>
 
       {/* Redaction Detectors */}
-      <Section title="Redaction Detectors" id="redaction-detectors">
+      <Section title="Redaction Detectors" id="redaction-detectors" {...sectionProps}>
         <div className="space-y-2">
           {DETECTOR_PLACEHOLDERS.map((detector) => (
             <label
@@ -335,7 +325,7 @@ export const SettingsComponent: React.FC = () => {
       </Section>
 
       {/* Right-Click Actions */}
-      <Section title="Right-Click Actions" id="context-menu-actions">
+      <Section title="Right-Click Actions" id="context-menu-actions" {...sectionProps}>
         <div className="text-sm text-gray-400">
           <p>No modules configured for right-click access yet.</p>
           <p className="text-xs mt-2">
@@ -344,6 +334,216 @@ export const SettingsComponent: React.FC = () => {
           </p>
         </div>
       </Section>
+    </div>
+  );
+};
+
+interface AiProviderCardProps {
+  provider: AiProviderConfig;
+  isDefault: boolean;
+  onUpdate: (updates: Partial<AiProviderConfig>) => Promise<void>;
+  onRemove: () => Promise<void>;
+  onSetDefault: (checked: boolean) => Promise<void>;
+}
+
+const AiProviderCard: React.FC<AiProviderCardProps> = ({
+  provider,
+  isDefault,
+  onUpdate,
+  onRemove,
+  onSetDefault,
+}) => {
+  const [endpointDraft, setEndpointDraft] = useState(provider.endpoint);
+  const [testStatus, setTestStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "running" }
+    | { kind: "ok"; message: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [keyApiKey, setKeyApiKey, keyLoading] = useApiKey(`ai.${provider.id}`);
+  const [keyDraft, setKeyDraft] = useState(keyApiKey ?? "");
+  const [showKey, setShowKey] = useState(false);
+
+  React.useEffect(() => {
+    setEndpointDraft(provider.endpoint);
+  }, [provider.endpoint]);
+
+  React.useEffect(() => {
+    setKeyDraft(keyApiKey ?? "");
+  }, [keyApiKey]);
+
+  const requiresKey =
+    provider.type === "openai" || provider.type === "anthropic";
+  const acceptsKey =
+    requiresKey || provider.type === "openai-compatible";
+
+  const handleEndpointBlur = async (): Promise<void> => {
+    if (endpointDraft === provider.endpoint) {
+      // No change.
+      if (endpointDraft.trim() !== "") {
+        void requestEndpointPermission(endpointDraft);
+      }
+      return;
+    }
+    await onUpdate({ endpoint: endpointDraft });
+    if (endpointDraft.trim() !== "") {
+      void requestEndpointPermission(endpointDraft);
+    }
+  };
+
+  const handleSaveKey = async (): Promise<void> => {
+    if (keyDraft.trim()) {
+      await setKeyApiKey(keyDraft);
+    } else if (keyApiKey) {
+      await removeApiKey(`ai.${provider.id}`);
+    }
+  };
+
+  const handleTest = async (): Promise<void> => {
+    setTestStatus({ kind: "running" });
+    const granted = await requestEndpointPermission(endpointDraft);
+    if (!granted) {
+      setTestStatus({
+        kind: "error",
+        message: "Permission denied for endpoint origin.",
+      });
+      return;
+    }
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: "ai.test-connection",
+        providerId: provider.id,
+      })) as AiTestConnectionResponse | undefined;
+      if (!response) {
+        setTestStatus({
+          kind: "error",
+          message: "No response from service worker.",
+        });
+        return;
+      }
+      if (response.ok) {
+        setTestStatus({ kind: "ok", message: response.message });
+      } else {
+        setTestStatus({ kind: "error", message: response.error });
+      }
+    } catch (err) {
+      setTestStatus({
+        kind: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  return (
+    <div className="border border-gray-700 rounded p-2 bg-gray-800">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={provider.label}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              placeholder="Provider name"
+              className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+            />
+            <select
+              value={provider.type}
+              onChange={(e) =>
+                onUpdate({
+                  type: e.target.value as AiProviderConfig["type"],
+                })
+              }
+              className="bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+            >
+              <option value="ollama">Ollama</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="openai-compatible">OpenAI-compatible</option>
+            </select>
+          </div>
+          <input
+            type="text"
+            value={endpointDraft}
+            onChange={(e) => setEndpointDraft(e.target.value)}
+            onBlur={handleEndpointBlur}
+            placeholder="http://localhost:11434"
+            className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+          />
+          <input
+            type="text"
+            value={provider.model ?? ""}
+            onChange={(e) => onUpdate({ model: e.target.value })}
+            placeholder={MODEL_PLACEHOLDERS[provider.type]}
+            className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+          />
+          {acceptsKey && (
+            <div className="flex gap-2 mt-1">
+              <div className="relative flex-1">
+                <input
+                  type={showKey ? "text" : "password"}
+                  value={keyDraft}
+                  onChange={(e) => setKeyDraft(e.target.value)}
+                  placeholder={
+                    requiresKey
+                      ? "API key (required)"
+                      : "API key (optional for self-hosted)"
+                  }
+                  disabled={keyLoading}
+                  className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 pr-8 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  title={showKey ? "Hide" : "Show"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs"
+                >
+                  {showKey ? "hide" : "show"}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveKey}
+                disabled={keyLoading}
+                className="px-2 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600 disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="ml-2 flex flex-col gap-1">
+          <button
+            onClick={handleTest}
+            disabled={testStatus.kind === "running"}
+            className="px-2 py-1 bg-blue-900 text-blue-100 rounded text-xs hover:bg-blue-800 disabled:opacity-50"
+          >
+            {testStatus.kind === "running" ? "Testing…" : "Test"}
+          </button>
+          <button
+            onClick={onRemove}
+            className="px-2 py-1 bg-red-900 text-red-100 rounded text-xs hover:bg-red-800"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+      <label className="text-xs text-gray-400 flex items-center gap-1">
+        <input
+          type="checkbox"
+          checked={isDefault}
+          onChange={(e) => onSetDefault(e.target.checked)}
+        />
+        Default provider
+      </label>
+      {testStatus.kind === "ok" && (
+        <p className="mt-1 text-xs text-emerald-400 break-words">
+          ✓ {testStatus.message}
+        </p>
+      )}
+      {testStatus.kind === "error" && (
+        <p className="mt-1 text-xs text-red-300 break-words">
+          ✗ {testStatus.message}
+        </p>
+      )}
     </div>
   );
 };

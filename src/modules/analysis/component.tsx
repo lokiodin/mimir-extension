@@ -1,0 +1,219 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { MarkdownView } from "@/components/MarkdownView";
+import { useSettings } from "@/storage/context";
+import { useMimirStore } from "@/store";
+import { pushAnalysisHistory } from "@/modules/analysis/history";
+import { AnalysisHistoryPane } from "@/modules/analysis/history-pane";
+import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
+import type {
+  AiCompleteRequest,
+  AiCompleteResponse,
+  AiCompleteSuccess,
+} from "@/background/ai-types";
+
+const FEATURE_ID = "log-analysis";
+
+async function sendComplete(
+  req: AiCompleteRequest,
+): Promise<AiCompleteSuccess> {
+  const response = (await chrome.runtime.sendMessage(req)) as
+    | AiCompleteResponse
+    | undefined;
+  if (!response) {
+    throw new Error("No response from service worker");
+  }
+  if (!response.ok) {
+    throw new Error(response.error);
+  }
+  return response;
+}
+
+interface CurrentView {
+  id: string;
+  timestamp: number;
+  input: string;
+  response: string;
+  providerLabel: string;
+}
+
+export const AnalysisComponent: React.FC = () => {
+  const [settings] = useSettings();
+  const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
+
+  const [input, setInput] = useState<string>("");
+  const [providerId, setProviderId] = useState<string>("");
+  const [current, setCurrent] = useState<CurrentView | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Default the per-run provider selector to the global default once settings load.
+  useEffect(() => {
+    if (!settings) return;
+    if (providerId !== "") {
+      // Re-validate that the chosen provider still exists.
+      const stillExists = settings.aiProviders.some((p) => p.id === providerId);
+      if (stillExists) return;
+    }
+    const fallback =
+      settings.defaultAiProviderId &&
+      settings.aiProviders.some((p) => p.id === settings.defaultAiProviderId)
+        ? settings.defaultAiProviderId
+        : (settings.aiProviders[0]?.id ?? "");
+    setProviderId(fallback);
+  }, [settings, providerId]);
+
+  const mutation = useMutation<AiCompleteSuccess, Error, AiCompleteRequest>({
+    mutationFn: sendComplete,
+    onSuccess: async (result, variables) => {
+      const entry: AnalysisHistoryEntry = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        input: variables.userInput,
+        response: result.response,
+        providerLabel: result.providerLabel,
+        providerType: result.providerType,
+      };
+      await pushAnalysisHistory(entry);
+      setCurrent({
+        id: entry.id,
+        timestamp: entry.timestamp,
+        input: entry.input,
+        response: entry.response,
+        providerLabel: entry.providerLabel,
+      });
+      setErrorMessage(null);
+    },
+    onError: (err) => {
+      setErrorMessage(err.message);
+    },
+  });
+
+  const isLoading = mutation.status === "pending";
+
+  const handleAnalyze = (): void => {
+    const trimmed = input.trim();
+    if (trimmed === "") return;
+    if (!providerId) return;
+    setErrorMessage(null);
+    mutation.mutate({
+      type: "ai.complete",
+      providerId,
+      featureId: FEATURE_ID,
+      userInput: input,
+    });
+  };
+
+  const handleHistorySelect = (entry: AnalysisHistoryEntry): void => {
+    setErrorMessage(null);
+    setCurrent({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      input: entry.input,
+      response: entry.response,
+      providerLabel: entry.providerLabel,
+    });
+  };
+
+  const noProviders = useMemo(
+    () => !!settings && settings.aiProviders.length === 0,
+    [settings],
+  );
+
+  if (!settings) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-400">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full gap-3">
+      {noProviders ? (
+        <div className="border border-gray-700 rounded p-3 bg-gray-800">
+          <p className="text-sm text-gray-300">
+            No AI providers configured. Open Settings → AI Providers to add one.
+          </p>
+          <button
+            onClick={() => setActiveModuleId("settings")}
+            className="mt-2 px-3 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600"
+          >
+            Open Settings
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400">Provider</label>
+            <select
+              value={providerId}
+              onChange={(e) => setProviderId(e.target.value)}
+              className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
+            >
+              {settings.aiProviders.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} ({p.type}
+                  {p.model ? ` · ${p.model}` : ""})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleAnalyze}
+              disabled={isLoading || input.trim() === "" || !providerId}
+              className="ml-auto px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800 disabled:opacity-50"
+            >
+              {isLoading ? "Analyzing…" : "Analyze"}
+            </button>
+          </div>
+
+          <div
+            className="grid gap-3 flex-1 min-h-0"
+            style={{ gridTemplateColumns: "2fr 1fr" }}
+          >
+            <div className="flex flex-col gap-2 min-h-0 min-w-0">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Paste log content here. Sent as-is to the configured AI — no automatic redaction."
+                spellCheck={false}
+                className="min-h-32 max-h-72 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-gray-500 resize-y"
+              />
+
+              {errorMessage !== null && (
+                <div
+                  aria-live="polite"
+                  className="text-red-300 bg-red-950/40 border border-red-900 px-2 py-1 rounded text-sm break-words"
+                >
+                  Analysis failed: {errorMessage}
+                </div>
+              )}
+
+              <div className="flex-1 min-h-0 overflow-y-auto border border-gray-700 rounded p-3 bg-gray-900">
+                {current === null ? (
+                  <p className="text-sm text-gray-500">
+                    Paste a log snippet and click Analyze.
+                  </p>
+                ) : (
+                  <>
+                    <div className="text-xs text-gray-500 mb-2">
+                      Provider: {current.providerLabel} · {" "}
+                      {new Date(current.timestamp).toLocaleString()}
+                    </div>
+                    <MarkdownView content={current.response} />
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <AnalysisHistoryPane
+                onSelect={handleHistorySelect}
+                selectedId={current?.id ?? null}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};

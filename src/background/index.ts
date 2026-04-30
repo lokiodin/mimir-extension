@@ -7,12 +7,17 @@ import { lookupAbuseIPDB } from "@/background/abuseipdb-client";
 import { lookupAbusech } from "@/background/abusech-client";
 import { upsertCtiHistory } from "@/background/cti-history";
 import { installKeepaliveListener } from "@/background/keepalive";
+import { complete as aiComplete, testConnection as aiTestConnection } from "@/background/ai-client";
 import { getApiKey, getSettings } from "@/storage/manager";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
   CtiResult,
 } from "@/background/cti-types";
+import type {
+  AiCompleteRequest,
+  AiTestConnectionRequest,
+} from "@/background/ai-types";
 
 installKeepaliveListener();
 
@@ -30,6 +35,25 @@ function isCtiLookupRequest(value: unknown): value is CtiLookupRequest {
     typeof v.indicator === "string" &&
     typeof v.query === "string"
   );
+}
+
+function isAiCompleteRequest(value: unknown): value is AiCompleteRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.type === "ai.complete" &&
+    typeof v.providerId === "string" &&
+    typeof v.featureId === "string" &&
+    typeof v.userInput === "string"
+  );
+}
+
+function isAiTestConnectionRequest(
+  value: unknown,
+): value is AiTestConnectionRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return v.type === "ai.test-connection" && typeof v.providerId === "string";
 }
 
 async function handleCtiLookup(
@@ -97,6 +121,16 @@ chrome.runtime.onMessage.addListener(
     if (isCtiLookupRequest(message)) {
       handleCtiLookup(message).then(sendResponse);
       return true; // keep the message channel open for the async response
+    }
+
+    if (isAiCompleteRequest(message)) {
+      aiComplete(message).then(sendResponse);
+      return true;
+    }
+
+    if (isAiTestConnectionRequest(message)) {
+      aiTestConnection(message).then(sendResponse);
+      return true;
     }
 
     return false;
