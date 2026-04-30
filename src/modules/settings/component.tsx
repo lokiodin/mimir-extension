@@ -436,81 +436,89 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
 
   return (
     <div className="border border-gray-700 rounded p-2 bg-gray-800">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={provider.label}
-              onChange={(e) => onUpdate({ label: e.target.value })}
-              placeholder="Provider name"
-              className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-            />
-            <select
-              value={provider.type}
-              onChange={(e) =>
-                onUpdate({
-                  type: e.target.value as AiProviderConfig["type"],
-                })
-              }
-              className="bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-            >
-              <option value="ollama">Ollama</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="openai-compatible">OpenAI-compatible</option>
-            </select>
-          </div>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
           <input
             type="text"
-            value={endpointDraft}
-            onChange={(e) => setEndpointDraft(e.target.value)}
-            onBlur={handleEndpointBlur}
-            placeholder="http://localhost:11434"
-            className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+            value={provider.label}
+            onChange={(e) => onUpdate({ label: e.target.value })}
+            placeholder="Provider name"
+            className="flex-1 min-w-0 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
           />
-          <input
-            type="text"
-            value={provider.model ?? ""}
-            onChange={(e) => onUpdate({ model: e.target.value })}
-            placeholder={MODEL_PLACEHOLDERS[provider.type]}
-            className="w-full mt-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-          />
-          {acceptsKey && (
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <input
-                  type={showKey ? "text" : "password"}
-                  value={keyDraft}
-                  onChange={(e) => setKeyDraft(e.target.value)}
-                  placeholder={
-                    requiresKey
-                      ? "API key (required)"
-                      : "API key (optional for self-hosted)"
-                  }
-                  disabled={keyLoading}
-                  className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 pr-8 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  title={showKey ? "Hide" : "Show"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs"
-                >
-                  {showKey ? "hide" : "show"}
-                </button>
-              </div>
-              <button
-                onClick={handleSaveKey}
+          <select
+            value={provider.type}
+            onChange={(e) =>
+              onUpdate({
+                type: e.target.value as AiProviderConfig["type"],
+              })
+            }
+            className="bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+          >
+            <option value="ollama">Ollama</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openai-compatible">OpenAI-compatible</option>
+          </select>
+        </div>
+        <input
+          type="text"
+          value={endpointDraft}
+          onChange={(e) => setEndpointDraft(e.target.value)}
+          onBlur={handleEndpointBlur}
+          placeholder="http://localhost:11434"
+          className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+        />
+        <input
+          type="text"
+          value={provider.model ?? ""}
+          onChange={(e) => onUpdate({ model: e.target.value })}
+          placeholder={MODEL_PLACEHOLDERS[provider.type]}
+          className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+        />
+        {acceptsKey && (
+          <div className="flex gap-2">
+            <div className="relative flex-1 min-w-0">
+              <input
+                type={showKey ? "text" : "password"}
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                placeholder={
+                  requiresKey
+                    ? "API key (required)"
+                    : "API key (optional for self-hosted)"
+                }
                 disabled={keyLoading}
-                className="px-2 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600 disabled:opacity-50"
+                className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 pr-12 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                title={showKey ? "Hide" : "Show"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs"
               >
-                Save
+                {showKey ? "hide" : "show"}
               </button>
             </div>
-          )}
-        </div>
-        <div className="ml-2 flex flex-col gap-1">
+            <button
+              onClick={handleSaveKey}
+              disabled={keyLoading}
+              className="px-2 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600 disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <label className="text-xs text-gray-400 flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={isDefault}
+            onChange={(e) => onSetDefault(e.target.checked)}
+          />
+          Default provider
+        </label>
+        <div className="flex gap-1">
           <button
             onClick={handleTest}
             disabled={testStatus.kind === "running"}
@@ -526,14 +534,6 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
           </button>
         </div>
       </div>
-      <label className="text-xs text-gray-400 flex items-center gap-1">
-        <input
-          type="checkbox"
-          checked={isDefault}
-          onChange={(e) => onSetDefault(e.target.checked)}
-        />
-        Default provider
-      </label>
       {testStatus.kind === "ok" && (
         <p className="mt-1 text-xs text-emerald-400 break-words">
           ✓ {testStatus.message}

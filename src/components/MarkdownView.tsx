@@ -103,10 +103,14 @@ const PreBlock: React.FC<PreProps> = ({ node, children, ...rest }) => {
   const child = node?.children?.find((c) => c.type === "element");
   if (child && child.tagName === "code") {
     const classes = classNameList(child.properties);
+    const text = hastTextContent(child).replace(/\n+$/, "");
     if (classes.includes("language-mermaid")) {
-      const chart = hastTextContent(child).replace(/\n+$/, "");
-      return <MermaidView chart={chart} />;
+      return <MermaidView chart={text} />;
     }
+    // Suppress empty/whitespace-only fences. Some models emit a stray empty
+    // ``` block before/after the actual content; rendering it leaves a bare
+    // dark bar.
+    if (text.trim() === "") return null;
   }
   return <pre {...rest}>{children}</pre>;
 };

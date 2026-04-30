@@ -45,6 +45,22 @@ export const AnalysisComponent: React.FC = () => {
   const [providerId, setProviderId] = useState<string>("");
   const [current, setCurrent] = useState<CurrentView | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setCopied(false);
+  }, [current?.id]);
+
+  const handleCopy = async (): Promise<void> => {
+    if (!current) return;
+    try {
+      await navigator.clipboard.writeText(current.response);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   // Default the per-run provider selector to the global default once settings load.
   useEffect(() => {
@@ -168,7 +184,7 @@ export const AnalysisComponent: React.FC = () => {
 
           <div
             className="grid gap-3 flex-1 min-h-0"
-            style={{ gridTemplateColumns: "2fr 1fr" }}
+            style={{ gridTemplateColumns: "4fr 1fr" }}
           >
             <div className="flex flex-col gap-2 min-h-0 min-w-0">
               <textarea
@@ -176,7 +192,7 @@ export const AnalysisComponent: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Paste log content here. Sent as-is to the configured AI — no automatic redaction."
                 spellCheck={false}
-                className="min-h-32 max-h-72 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-gray-500 resize-y"
+                className="min-h-15 max-h-72 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-gray-500 resize-y"
               />
 
               {errorMessage !== null && (
@@ -188,14 +204,50 @@ export const AnalysisComponent: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex-1 min-h-0 overflow-y-auto border border-gray-700 rounded p-3 bg-gray-900">
+              <div className="relative flex-1 min-h-0 overflow-y-auto border border-gray-700 rounded p-3 bg-gray-900">
                 {current === null ? (
                   <p className="text-sm text-gray-500">
                     Paste a log snippet and click Analyze.
                   </p>
                 ) : (
                   <>
-                    <div className="text-xs text-gray-500 mb-2">
+                    <button
+                      onClick={handleCopy}
+                      title={copied ? "Copied" : "Copy raw Markdown"}
+                      aria-label="Copy raw Markdown"
+                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-100 hover:bg-gray-800"
+                    >
+                      {copied ? (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                    <div className="text-xs text-gray-500 mb-2 pr-8">
                       Provider: {current.providerLabel} · {" "}
                       {new Date(current.timestamp).toLocaleString()}
                     </div>

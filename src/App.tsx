@@ -33,7 +33,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
-      <nav className="w-48 border-r border-gray-700 p-2 overflow-y-auto flex flex-col">
+      <nav className="w-34 border-r border-gray-700 p-2 overflow-y-auto flex flex-col">
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <h1 className="text-lg font-bold">Mimir</h1>
           {surfaceKind === "popup" && (
