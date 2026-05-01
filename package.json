@@ -14,7 +14,8 @@
     "build:firefox": "webpack --mode production --config webpack.firefox.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "corpus:eval": "vitest run tests/redaction-corpus/runner.test.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.68.0",

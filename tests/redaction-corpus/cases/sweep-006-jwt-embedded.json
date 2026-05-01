@@ -1,0 +1,13 @@
+{
+  "id": "sweep-006-jwt-embedded",
+  "source": "synthesized",
+  "input": "{\"token\":\"eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4eHgifQ.aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890\"}",
+  "expected": [
+    {
+      "type": "jwt",
+      "start": 10,
+      "end": 86,
+      "original": "eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4eHgifQ.aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"
+    }
+  ]
+}

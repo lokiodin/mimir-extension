@@ -1,0 +1,13 @@
+{
+  "id": "ipv6-002-compressed",
+  "source": "synthesized",
+  "input": "router LSA from 2001:db8::ff00:42:8329 announced",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 16,
+      "end": 38,
+      "original": "2001:db8::ff00:42:8329"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sweep-024-ipv4-inside-arp",
+  "source": "synthesized",
+  "input": "internet  10.20.30.40         0   00:50:56:c0:00:08  ARPA   eth0",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 10,
+      "end": 21,
+      "original": "10.20.30.40"
+    },
+    {
+      "type": "mac address",
+      "start": 34,
+      "end": 51,
+      "original": "00:50:56:c0:00:08"
+    }
+  ]
+}

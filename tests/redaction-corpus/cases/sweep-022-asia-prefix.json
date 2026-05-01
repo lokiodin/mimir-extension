@@ -1,0 +1,13 @@
+{
+  "id": "sweep-022-asia-prefix",
+  "source": "synthesized",
+  "input": "Federation issued ASIA1234567890123456",
+  "expected": [
+    {
+      "type": "aws access key",
+      "start": 18,
+      "end": 38,
+      "original": "ASIA1234567890123456"
+    }
+  ]
+}

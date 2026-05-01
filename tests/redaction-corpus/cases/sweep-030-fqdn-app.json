@@ -1,0 +1,13 @@
+{
+  "id": "sweep-030-fqdn-app",
+  "source": "synthesized",
+  "input": "Hosted at notion-clone.app for collab.",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 10,
+      "end": 26,
+      "original": "notion-clone.app"
+    }
+  ]
+}

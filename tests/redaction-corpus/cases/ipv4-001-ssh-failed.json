@@ -1,0 +1,13 @@
+{
+  "id": "ipv4-001-ssh-failed",
+  "source": "synthesized",
+  "input": "Aug 12 10:32:01 webhost sshd[2453]: Failed password for invalid user admin from 203.0.113.42 port 51823 ssh2",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 80,
+      "end": 92,
+      "original": "203.0.113.42"
+    }
+  ]
+}

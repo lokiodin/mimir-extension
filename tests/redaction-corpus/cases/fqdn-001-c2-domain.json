@@ -1,0 +1,13 @@
+{
+  "id": "fqdn-001-c2-domain",
+  "source": "synthesized",
+  "input": "Beacon to evil-c2.example.com observed in pcap.",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 10,
+      "end": 29,
+      "original": "evil-c2.example.com"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "combo-001-incident-snippet",
+  "source": "ir-public",
+  "input": "Incident: alice@corp.com reported anomalous logins from 203.0.113.42 starting 2024-01-15. Forwarded to soc@corp.com.",
+  "expected": [
+    {
+      "type": "email",
+      "start": 10,
+      "end": 24,
+      "original": "alice@corp.com"
+    },
+    {
+      "type": "ipv4",
+      "start": 56,
+      "end": 68,
+      "original": "203.0.113.42"
+    },
+    {
+      "type": "email",
+      "start": 103,
+      "end": 115,
+      "original": "soc@corp.com"
+    }
+  ]
+}

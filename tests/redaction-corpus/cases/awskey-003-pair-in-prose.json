@@ -1,0 +1,19 @@
+{
+  "id": "awskey-003-pair-in-prose",
+  "source": "ir-public",
+  "input": "We rotated AKIAJ1NLBQDX9YOA0001 and AKIAJ1NLBQDX9YOA0002 after the leak.",
+  "expected": [
+    {
+      "type": "aws access key",
+      "start": 11,
+      "end": 31,
+      "original": "AKIAJ1NLBQDX9YOA0001"
+    },
+    {
+      "type": "aws access key",
+      "start": 36,
+      "end": 56,
+      "original": "AKIAJ1NLBQDX9YOA0002"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "uuid-002-multi",
+  "source": "synthesized",
+  "input": "Spans: 6fa459ea-ee8a-3ca4-894e-db77e160355e and 12345678-1234-5234-9234-123456789abc",
+  "expected": [
+    {
+      "type": "uuid",
+      "start": 7,
+      "end": 43,
+      "original": "6fa459ea-ee8a-3ca4-894e-db77e160355e"
+    },
+    {
+      "type": "uuid",
+      "start": 48,
+      "end": 84,
+      "original": "12345678-1234-5234-9234-123456789abc"
+    }
+  ]
+}

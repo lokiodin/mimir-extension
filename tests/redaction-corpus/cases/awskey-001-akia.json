@@ -1,0 +1,19 @@
+{
+  "id": "awskey-001-akia",
+  "source": "synthesized",
+  "input": "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n",
+  "expected": [
+    {
+      "type": "aws access key",
+      "start": 18,
+      "end": 38,
+      "original": "AKIAIOSFODNN7EXAMPLE"
+    },
+    {
+      "type": "high entropy",
+      "start": 61,
+      "end": 101,
+      "original": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ipv4-neg-001-version",
+  "source": "synthesized",
+  "input": "Running version 10.2.13.4 of the agent.",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 16,
+      "end": 25,
+      "original": "10.2.13.4"
+    }
+  ]
+}

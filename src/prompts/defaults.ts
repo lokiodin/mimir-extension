@@ -27,14 +27,52 @@ Factually state notable technical parameters observed directly in the log (ports
 ### 4. Event Flow Diagram (optional)
 If the log contains a clear sequence of two or more events between distinct actors (e.g., client → server → datastore, or attacker → victim host → C2), include a Mermaid \`sequenceDiagram\` or \`flowchart\` inside a fenced \`\`\`mermaid code block to visualize the flow. If the log is a single event or the sequence is ambiguous, omit this section entirely — do not invent steps.`,
 
-  "redaction-ai": `You are a data redaction assistant. The user has already flagged sensitive content (IPs, emails, tokens, etc.) in Stage 1.
+  "redaction-ai": `You are a security-focused log redaction assistant.
 
-Review the provided text and redaction list. Identify ADDITIONAL sensitive content Stage 1 may have missed (e.g., internal codenames, project names, contextual PII). Return a JSON array:
+TASK:
+Analyze the provided log text and identify additional sensitive entities that should be redacted.
 
+IMPORTANT RULES:
+1. You MUST return ONLY a JSON array. No explanations, no markdown, no extra text.
+2. Each item must follow this exact schema:
 [
   { "type": "internal-name", "original": "ProjectX", "placeholder": "PROJECT_1" },
   ...
 ]
+3. Do NOT include anything already present in the Stage 1 detections list.
+4. If an entity overlaps or matches a Stage 1 detection, ignore it.
+5. If no additional sensitive data is found, return an empty array: []
 
-IMPORTANT: Do not unflag or remove any Stage 1 detections. Only add new ones. Return an empty array if Stage 1 caught everything.`,
+WHAT TO DETECT:
+Identify high-confidence sensitive or internal data, including but not limited to:
+- Usernames, emails, person names
+- IP addresses (IPv4 and IPv6)
+- Hostnames, internal domains, Active Directory domains
+- Machine names, server names, container IDs
+- File paths that include usernames or internal structure (do not redact the entire path but just the user)
+- API keys, tokens, secrets, hashes
+- Database names, table names that reveal internal structure
+- Project codenames or internal service names
+- URLs containing sensitive query parameters
+- Phone numbers, addresses, IDs (PII)
+- Cloud resource identifiers (ARNs, project IDs, etc.)
+
+FILTERING:
+- Ignore generic/common terms (e.g., "localhost", "admin" unless clearly sensitive in context)
+- Prefer precision over recall — avoid guessing
+- Do NOT duplicate entries
+
+PLACEHOLDERS:
+- Use consistent, incrementing placeholders per type:
+  - USER_1, USER_2
+  - IP_1, IP_2
+  - DOMAIN_1
+  - HOST_1
+  - PROJECT_1
+  - TOKEN_1
+  - EMAIL_1
+- Keep numbering stable within this response
+
+OUTPUT:
+Return ONLY the JSON array.`,
 };

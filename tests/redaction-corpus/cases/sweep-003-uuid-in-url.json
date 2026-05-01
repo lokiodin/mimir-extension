@@ -1,0 +1,13 @@
+{
+  "id": "sweep-003-uuid-in-url",
+  "source": "synthesized",
+  "input": "GET /api/jobs/12345678-1234-4234-9abc-123456789abc/status HTTP/1.1",
+  "expected": [
+    {
+      "type": "uuid",
+      "start": 14,
+      "end": 50,
+      "original": "12345678-1234-4234-9abc-123456789abc"
+    }
+  ]
+}

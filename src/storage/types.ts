@@ -14,6 +14,8 @@ export interface Settings {
   ctiTtlHours: number; // cache staleness threshold, default 72
   abusechMode: AbusechMode; // hunting.abuse.ch auth mode (TECHNICAL_DESIGN.md §6)
   redactionDetectors: Record<string, boolean>; // detectorId -> enabled
+  redactionStage2Enabled: boolean; // Stage 2 AI enrichment on by default? PRD §7.5: default false.
+  redactionAiProviderId?: string; // optional override; falls back to defaultAiProviderId
   contextMenu: Record<string, boolean>; // moduleId -> enabled
 }
 
@@ -22,5 +24,6 @@ export const DEFAULT_SETTINGS: Settings = {
   ctiTtlHours: 72,
   abusechMode: "web",
   redactionDetectors: {},
+  redactionStage2Enabled: false,
   contextMenu: {},
 };

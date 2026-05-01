@@ -1,0 +1,31 @@
+{
+  "id": "combo-004-mail-trace",
+  "source": "synthesized",
+  "input": "Received from mail.example.com (1.2.3.4) by relay.corp.com for alice@corp.com",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 14,
+      "end": 30,
+      "original": "mail.example.com"
+    },
+    {
+      "type": "ipv4",
+      "start": 32,
+      "end": 39,
+      "original": "1.2.3.4"
+    },
+    {
+      "type": "fqdn",
+      "start": 44,
+      "end": 58,
+      "original": "relay.corp.com"
+    },
+    {
+      "type": "email",
+      "start": 63,
+      "end": 77,
+      "original": "alice@corp.com"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ipv4-002-access-log",
+  "source": "synthesized",
+  "input": "198.51.100.7 - - [10/Oct/2023:13:55:36 -0700] \"GET /admin HTTP/1.1\" 401 287",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 0,
+      "end": 12,
+      "original": "198.51.100.7"
+    }
+  ]
+}

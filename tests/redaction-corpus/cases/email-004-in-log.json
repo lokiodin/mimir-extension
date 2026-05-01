@@ -1,0 +1,13 @@
+{
+  "id": "email-004-in-log",
+  "source": "ir-public",
+  "input": "Mailgun bounce: 550 5.4.1 Recipient address rejected: <attacker@malicious.gov>",
+  "expected": [
+    {
+      "type": "email",
+      "start": 55,
+      "end": 77,
+      "original": "attacker@malicious.gov"
+    }
+  ]
+}

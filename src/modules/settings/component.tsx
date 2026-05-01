@@ -6,6 +6,7 @@ import type { AiProviderConfig } from "@/storage/types";
 import { clearCtiHistory, getCtiHistory } from "@/background/cti-history";
 import { exportHistoryAsCsv } from "@/modules/cti/csv";
 import { clearAnalysisHistory } from "@/modules/analysis/history";
+import { DETECTOR_LABELS } from "@/redaction/detectors";
 import type {
   AiTestConnectionResponse,
 } from "@/background/ai-types";
@@ -56,21 +57,6 @@ const Section: React.FC<SectionProps> = ({
     )}
   </div>
 );
-
-const DETECTOR_PLACEHOLDERS = [
-  "IPv4",
-  "IPv6",
-  "Email",
-  "FQDN",
-  "AWS Access Key",
-  "GitHub Token",
-  "JWT",
-  "Bearer Token",
-  "Private Key Block",
-  "MAC Address",
-  "User Path",
-  "UUID / High Entropy",
-];
 
 const REDACTION_FEATURE_IDS = ["log-analysis", "redaction-ai"];
 
@@ -143,6 +129,14 @@ export const SettingsComponent: React.FC = () => {
         [detectorId]: !current,
       },
     });
+  };
+
+  const toggleStage2 = async (enabled: boolean) => {
+    await updateSettings({ redactionStage2Enabled: enabled });
+  };
+
+  const setRedactionProvider = async (id: string | undefined) => {
+    await updateSettings({ redactionAiProviderId: id });
   };
 
 
@@ -303,24 +297,62 @@ export const SettingsComponent: React.FC = () => {
         </div>
       </Section>
 
-      {/* Redaction Detectors */}
-      <Section title="Redaction Detectors" id="redaction-detectors" {...sectionProps}>
-        <div className="space-y-2">
-          {DETECTOR_PLACEHOLDERS.map((detector) => (
-            <label
-              key={detector}
-              className="text-sm text-gray-300 flex items-center gap-2"
-            >
+      {/* Redaction */}
+      <Section title="Redaction" id="redaction" {...sectionProps}>
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Stage 1 detectors</p>
+            <div className="space-y-1">
+              {DETECTOR_LABELS.map(({ id, label }) => (
+                <label
+                  key={id}
+                  className="text-sm text-gray-300 flex items-center gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.redactionDetectors[id] ?? true}
+                    onChange={() => toggleDetector(id)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-gray-700 pt-2 space-y-2">
+            <label className="text-sm text-gray-300 flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={
-                  settings.redactionDetectors[detector.toLowerCase()] ?? true
-                }
-                onChange={() => toggleDetector(detector.toLowerCase())}
+                checked={settings.redactionStage2Enabled}
+                onChange={(e) => toggleStage2(e.target.checked)}
               />
-              {detector}
+              Enable Stage 2 (AI enrichment) by default
             </label>
-          ))}
+            <p className="text-xs text-gray-500">
+              Off by default. When on, the configured AI provider is asked
+              to flag additional sensitive content Stage 1 missed. Stage 1
+              detections are never unflagged.
+            </p>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-400">Provider override</label>
+              <select
+                value={settings.redactionAiProviderId ?? ""}
+                onChange={(e) =>
+                  setRedactionProvider(
+                    e.target.value === "" ? undefined : e.target.value,
+                  )
+                }
+                className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-xs"
+              >
+                <option value="">(use default provider)</option>
+                {settings.aiProviders.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </Section>
 

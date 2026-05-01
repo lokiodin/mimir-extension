@@ -1,0 +1,13 @@
+{
+  "id": "sweep-002-email-quoted",
+  "source": "synthesized",
+  "input": "Header: From: \"Alice\" <alice@example.com>",
+  "expected": [
+    {
+      "type": "email",
+      "start": 23,
+      "end": 40,
+      "original": "alice@example.com"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "combo-003-error-trace",
+  "source": "synthesized",
+  "input": "TypeError at /Users/dave/app/index.js:42\n  request to https://internal.dev/api failed\n  uuid=550e8400-e29b-41d4-a716-446655440001",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 20,
+      "end": 24,
+      "original": "dave"
+    },
+    {
+      "type": "fqdn",
+      "start": 62,
+      "end": 74,
+      "original": "internal.dev"
+    },
+    {
+      "type": "uuid",
+      "start": 93,
+      "end": 129,
+      "original": "550e8400-e29b-41d4-a716-446655440001"
+    }
+  ]
+}

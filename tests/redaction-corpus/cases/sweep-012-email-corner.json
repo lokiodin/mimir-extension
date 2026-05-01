@@ -1,0 +1,13 @@
+{
+  "id": "sweep-012-email-corner",
+  "source": "synthesized",
+  "input": "Notify ops-list@infra.engineering.dev about the spike.",
+  "expected": [
+    {
+      "type": "email",
+      "start": 7,
+      "end": 37,
+      "original": "ops-list@infra.engineering.dev"
+    }
+  ]
+}

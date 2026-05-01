@@ -1,0 +1,6 @@
+{
+  "id": "negative-002-numbers",
+  "source": "synthesized",
+  "input": "Order #45872 placed at 3:14pm for $19.95 (qty 2).",
+  "expected": []
+}

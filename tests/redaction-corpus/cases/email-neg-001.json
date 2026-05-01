@@ -1,0 +1,13 @@
+{
+  "id": "email-neg-001",
+  "source": "synthesized",
+  "input": "Reach me at no-at-sign.example.com or call directly.",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 12,
+      "end": 34,
+      "original": "no-at-sign.example.com"
+    }
+  ]
+}

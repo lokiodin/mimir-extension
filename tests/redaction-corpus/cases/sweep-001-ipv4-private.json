@@ -1,0 +1,19 @@
+{
+  "id": "sweep-001-ipv4-private",
+  "source": "synthesized",
+  "input": "RFC1918 192.168.0.1 and 10.255.255.254 are commonly internal.",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 8,
+      "end": 19,
+      "original": "192.168.0.1"
+    },
+    {
+      "type": "ipv4",
+      "start": 24,
+      "end": 38,
+      "original": "10.255.255.254"
+    }
+  ]
+}

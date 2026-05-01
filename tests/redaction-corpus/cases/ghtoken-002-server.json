@@ -1,0 +1,13 @@
+{
+  "id": "ghtoken-002-server",
+  "source": "synthesized",
+  "input": "Server token leaked: ghs_qzxw1234567890qzxw1234567890qzxw123456",
+  "expected": [
+    {
+      "type": "github token",
+      "start": 21,
+      "end": 63,
+      "original": "ghs_qzxw1234567890qzxw1234567890qzxw123456"
+    }
+  ]
+}

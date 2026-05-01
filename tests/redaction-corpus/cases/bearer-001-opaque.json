@@ -1,0 +1,19 @@
+{
+  "id": "bearer-001-opaque",
+  "source": "synthesized",
+  "input": "curl -H 'Authorization: Bearer abc123def456ghi789jkl0mnopqrstuvwxyz' https://api.service.io/v1/me",
+  "expected": [
+    {
+      "type": "bearer token",
+      "start": 31,
+      "end": 67,
+      "original": "abc123def456ghi789jkl0mnopqrstuvwxyz"
+    },
+    {
+      "type": "fqdn",
+      "start": 77,
+      "end": 91,
+      "original": "api.service.io"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "sweep-021-private-ec",
+  "source": "synthesized",
+  "input": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxoAoGCCqGSM49\n-----END EC PRIVATE KEY-----",
+  "expected": [
+    {
+      "type": "private key block",
+      "start": 0,
+      "end": 136,
+      "original": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxoAoGCCqGSM49\n-----END EC PRIVATE KEY-----"
+    }
+  ]
+}

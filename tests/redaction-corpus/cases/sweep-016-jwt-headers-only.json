@@ -1,0 +1,13 @@
+{
+  "id": "sweep-016-jwt-headers-only",
+  "source": "synthesized",
+  "input": "Header: Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9.signaturepartabc1234567890",
+  "expected": [
+    {
+      "type": "jwt",
+      "start": 30,
+      "end": 106,
+      "original": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9.signaturepartabc1234567890"
+    }
+  ]
+}

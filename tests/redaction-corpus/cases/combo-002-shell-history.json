@@ -1,0 +1,31 @@
+{
+  "id": "combo-002-shell-history",
+  "source": "ctf-public",
+  "input": "$ ssh ec2-user@10.0.5.12\n$ export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n$ curl -H \"Authorization: Bearer ghp_abc1234567890abc1234567890abc1234567\" https://api.github.com/user",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 15,
+      "end": 24,
+      "original": "10.0.5.12"
+    },
+    {
+      "type": "aws access key",
+      "start": 52,
+      "end": 72,
+      "original": "AKIAIOSFODNN7EXAMPLE"
+    },
+    {
+      "type": "github token",
+      "start": 106,
+      "end": 146,
+      "original": "ghp_abc1234567890abc1234567890abc1234567"
+    },
+    {
+      "type": "fqdn",
+      "start": 156,
+      "end": 170,
+      "original": "api.github.com"
+    }
+  ]
+}
