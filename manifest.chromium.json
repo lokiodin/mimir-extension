@@ -4,9 +4,19 @@
   "version": "1.0.0",
   "description": "Cybersecurity toolkit — encoding, CTI, log analysis, redaction, payloads",
   "permissions": ["storage", "contextMenus", "activeTab", "alarms"],
+  "icons": {
+    "16": "icons/logo-16.png",
+    "32": "icons/logo-32.png",
+    "48": "icons/logo-48.png",
+    "128": "icons/logo-128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Mimir"
+    "default_title": "Mimir",
+    "default_icon": {
+      "16": "icons/logo-16.png",
+      "32": "icons/logo-32.png"
+    }
   },
   "host_permissions": [
     "https://www.virustotal.com/*",

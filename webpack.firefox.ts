@@ -20,6 +20,10 @@ export default merge(common, {
           from: path.resolve(__dirname, "manifest.firefox.json"),
           to: "manifest.json",
         },
+        {
+          from: path.resolve(__dirname, "icons"),
+          to: "icons",
+        },
       ],
     }),
   ],
