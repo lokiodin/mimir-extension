@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { getModules } from "@/registry/loader";
 import { useMimirStore } from "@/store";
+import { useContextMenuDispatcher } from "@/surfaces/useContextMenuDispatcher";
 
 const modules = getModules();
 
@@ -16,6 +17,8 @@ export const App: React.FC = () => {
   const activeModuleId = useMimirStore((s) => s.activeModuleId);
   const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
   const surfaceKind = useMimirStore((s) => s.surfaceKind);
+
+  useContextMenuDispatcher();
 
   useEffect(() => {
     if (activeModuleId === "" && modules.length > 0) {

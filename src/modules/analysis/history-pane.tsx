@@ -64,9 +64,18 @@ export const AnalysisHistoryPane: React.FC<AnalysisHistoryPaneProps> = ({
                     onClick={() => onSelect(entry)}
                     className={`w-full text-left px-2 py-1.5 hover:bg-gray-800 ${
                       isSelected ? "bg-gray-800" : ""
-                    }`}
+                    } ${entry.error ? "border-l-2 border-red-700" : ""}`}
                   >
-                    <div className="text-xs text-gray-200 font-mono truncate">
+                    <div
+                      className={`text-xs font-mono truncate ${
+                        entry.error ? "text-red-300" : "text-gray-200"
+                      }`}
+                    >
+                      {entry.error && (
+                        <span className="text-[10px] uppercase mr-1 text-red-400">
+                          err
+                        </span>
+                      )}
                       {preview(entry.input) || "(empty input)"}
                     </div>
                     <div className="text-[10px] text-gray-500 mt-0.5">

@@ -35,6 +35,7 @@ interface CurrentView {
   input: string;
   response: string;
   providerLabel: string;
+  error?: boolean;
 }
 
 export const AnalysisComponent: React.FC = () => {
@@ -127,6 +128,7 @@ export const AnalysisComponent: React.FC = () => {
       input: entry.input,
       response: entry.response,
       providerLabel: entry.providerLabel,
+      error: entry.error,
     });
   };
 
@@ -247,11 +249,24 @@ export const AnalysisComponent: React.FC = () => {
                         </svg>
                       )}
                     </button>
-                    <div className="text-xs text-gray-500 mb-2 pr-8">
-                      Provider: {current.providerLabel} · {" "}
-                      {new Date(current.timestamp).toLocaleString()}
+                    <div className="text-xs text-gray-500 mb-2 pr-8 flex items-center gap-2">
+                      {current.error && (
+                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-red-950/60 text-red-200 border border-red-900 rounded">
+                          Error
+                        </span>
+                      )}
+                      <span>
+                        Provider: {current.providerLabel} · {" "}
+                        {new Date(current.timestamp).toLocaleString()}
+                      </span>
                     </div>
-                    <MarkdownView content={current.response} />
+                    {current.error ? (
+                      <pre className="text-sm text-red-200 bg-red-950/30 border border-red-900 rounded p-2 whitespace-pre-wrap break-words">
+                        {current.response}
+                      </pre>
+                    ) : (
+                      <MarkdownView content={current.response} />
+                    )}
                   </>
                 )}
               </div>

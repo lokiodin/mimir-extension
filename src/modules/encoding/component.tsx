@@ -5,6 +5,7 @@ import {
   TextTransformPanel,
   type TextTransform,
 } from "@/components/TextTransformPanel";
+import { useMimirStore } from "@/store";
 
 const STORAGE_KEY = "modules.encoding";
 const PERSIST_DEBOUNCE_MS = 250;
@@ -72,6 +73,15 @@ export const EncodingComponent: React.FC = () => {
       }
     };
   }, [hydrated, operationId, input]);
+
+  const pendingInput = useMimirStore((s) => s.pendingInput);
+  const setPendingInput = useMimirStore((s) => s.setPendingInput);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (pendingInput?.moduleId !== "encoding") return;
+    setInput(pendingInput.value);
+    setPendingInput(null);
+  }, [hydrated, pendingInput, setPendingInput]);
 
   return (
     <TextTransformPanel

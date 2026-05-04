@@ -17,6 +17,7 @@ export interface Settings {
   redactionStage2Enabled: boolean; // Stage 2 AI enrichment on by default? PRD §7.5: default false.
   redactionAiProviderId?: string; // optional override; falls back to defaultAiProviderId
   contextMenu: Record<string, boolean>; // moduleId -> enabled
+  lastPopupOpenedTs?: number; // epoch ms; used by SW to compute the unread-analyses badge
 }
 
 export const DEFAULT_SETTINGS: Settings = {

@@ -6,3 +6,11 @@
 export function isFirefox(): boolean {
   return typeof (globalThis as Record<string, unknown>).browser !== "undefined";
 }
+
+export {
+  menuCreate,
+  menuRemove,
+  menuRemoveAll,
+  onMenuClicked,
+  openPopup,
+} from "@/browser-compat/menus";

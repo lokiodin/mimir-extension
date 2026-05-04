@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useSettings, useApiKey } from "@/storage/context";
 import { removeApiKey, removePrompt } from "@/storage/manager";
 import { PROMPT_DEFAULTS } from "@/prompts/defaults";
@@ -7,6 +7,7 @@ import { clearCtiHistory, getCtiHistory } from "@/background/cti-history";
 import { exportHistoryAsCsv } from "@/modules/cti/csv";
 import { clearAnalysisHistory } from "@/modules/analysis/history";
 import { DETECTOR_LABELS } from "@/redaction/detectors";
+import { getModules } from "@/registry/loader";
 import type {
   AiTestConnectionResponse,
 } from "@/background/ai-types";
@@ -139,6 +140,15 @@ export const SettingsComponent: React.FC = () => {
     await updateSettings({ redactionAiProviderId: id });
   };
 
+  const toggleContextMenu = async (moduleId: string) => {
+    const current = settings.contextMenu[moduleId] !== false;
+    await updateSettings({
+      contextMenu: {
+        ...settings.contextMenu,
+        [moduleId]: !current,
+      },
+    });
+  };
 
   const sectionProps = { openSection, onToggle: toggleSection };
 
@@ -358,13 +368,10 @@ export const SettingsComponent: React.FC = () => {
 
       {/* Right-Click Actions */}
       <Section title="Right-Click Actions" id="context-menu-actions" {...sectionProps}>
-        <div className="text-sm text-gray-400">
-          <p>No modules configured for right-click access yet.</p>
-          <p className="text-xs mt-2">
-            Modules can opt into context-menu integration in settings here once
-            they declare it.
-          </p>
-        </div>
+        <ContextMenuToggles
+          contextMenu={settings.contextMenu}
+          onToggle={toggleContextMenu}
+        />
       </Section>
     </div>
   );
@@ -719,6 +726,65 @@ const AbusechModeField: React.FC = () => {
 interface PromptFieldProps {
   featureId: string;
 }
+
+interface ContextMenuTogglesProps {
+  contextMenu: Record<string, boolean>;
+  onToggle: (moduleId: string) => Promise<void>;
+}
+
+const ContextMenuToggles: React.FC<ContextMenuTogglesProps> = ({
+  contextMenu,
+  onToggle,
+}) => {
+  const optInModules = useMemo(
+    () => getModules().filter((m) => m.contextMenu),
+    [],
+  );
+  if (optInModules.length === 0) {
+    return (
+      <p className="text-sm text-gray-400">
+        No modules declare a right-click action.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500">
+        Each entry appears on right-click of selected text. Disable to remove
+        an entry from the menu without disabling the module itself. Default:
+        enabled.
+      </p>
+      <div className="space-y-1">
+        {optInModules.map((mod) => {
+          const enabled = contextMenu[mod.id] !== false;
+          const isBackground = !mod.contextMenu?.onInvoke;
+          return (
+            <div key={mod.id} className="flex items-start gap-2">
+              <input
+                id={`ctx-menu-${mod.id}`}
+                type="checkbox"
+                checked={enabled}
+                onChange={() => onToggle(mod.id)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor={`ctx-menu-${mod.id}`}
+                className="text-sm text-gray-300 leading-tight"
+              >
+                {mod.contextMenu?.title ?? mod.label}
+                {isBackground && (
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    Runs in background — result lands in history
+                  </span>
+                )}
+              </label>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const PromptField: React.FC<PromptFieldProps> = ({ featureId }) => {
   const [prompt, setPrompt] = useState(

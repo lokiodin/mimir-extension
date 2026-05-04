@@ -9,6 +9,15 @@ import { upsertCtiHistory } from "@/background/cti-history";
 import { installKeepaliveListener } from "@/background/keepalive";
 import { complete as aiComplete, testConnection as aiTestConnection } from "@/background/ai-client";
 import { getApiKey, getSettings } from "@/storage/manager";
+import {
+  handleMenuClick,
+  handlePopupOpened,
+  rebuildContextMenus,
+  syncContextMenusOnSettingsChange,
+} from "@/background/context-menus";
+import { onMenuClicked } from "@/browser-compat/menus";
+import { refreshBadge } from "@/background/badge";
+import type { Settings } from "@/storage/types";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
@@ -22,7 +31,29 @@ import type {
 installKeepaliveListener();
 
 chrome.runtime.onInstalled.addListener(() => {
-  // Context menu registration will go here once modules declare contextMenu entries.
+  void rebuildContextMenus();
+  void refreshBadge();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  void rebuildContextMenus();
+  void refreshBadge();
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return;
+  const settingsChange = changes.settings;
+  if (!settingsChange) return;
+  const oldVal = settingsChange.oldValue as Partial<Settings> | undefined;
+  const newVal = settingsChange.newValue as Settings | undefined;
+  if (!newVal) return;
+  void syncContextMenusOnSettingsChange(oldVal, newVal);
+});
+
+onMenuClicked((info) => {
+  const id = String(info.menuItemId);
+  const selection = info.selectionText ?? "";
+  void handleMenuClick(id, selection);
 });
 
 function isCtiLookupRequest(value: unknown): value is CtiLookupRequest {
@@ -130,6 +161,16 @@ chrome.runtime.onMessage.addListener(
 
     if (isAiTestConnectionRequest(message)) {
       aiTestConnection(message).then(sendResponse);
+      return true;
+    }
+
+    if (
+      typeof message === "object" &&
+      message !== null &&
+      "type" in message &&
+      (message as { type: string }).type === "popup.opened"
+    ) {
+      handlePopupOpened().then(() => sendResponse({ ok: true }));
       return true;
     }
 

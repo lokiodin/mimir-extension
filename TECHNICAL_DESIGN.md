@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.4 |
-| Document Version | 2.4 |
+| Document Version | 2.5 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.5** — Right-click integration wired for Encoding, Defang, CTI, and Log Analysis. §4.1 widens `MimirModule.contextMenu.onInvoke` to optional (background-mode modules omit it). §4.3 rewritten to describe per-module invocation kinds: popup-mode (default — opens popup, switches module, prefills) and background-mode (Log Analysis — runs in SW, lands in history, surfaces via toolbar badge). New SW-side parallel registry: `src/modules/<id>/context-menu.ts` sibling files keep React out of the background bundle. §8 gains an optional `error?: boolean` flag on history entries so failed background analyses render distinctly. §9 storage namespaces gain `modules.contextMenu.pending` (popup-mode handoff) and `settings.lastPopupOpenedTs` (badge unread cutoff).
 - **2.4** — `TextTransformPanel` interface (§10.1) gains four optional fields populated by its first two callers: `group` and `inverse` on each transform (Encoding uses `group` for optgroups; Defang uses `inverse` so its bidirectional swap also flips to the paired transform), and controlled-input props `value`/`onValueChange` and `transformId`/`onTransformIdChange` (Encoding uses these to persist input across popup reopens). All four are optional and backwards-compatible with the v2.3 documented use case.
 - **2.3** — CTI cache and history collapsed into a single unified store (TTL = staleness, not deletion; LRU at 100). New §8 documents Log Analysis history (last 10 entries, FIFO). New §10.1 specifies the shared `TextTransformPanel` component for input-transform-output modules. Sections renumbered.
 - **2.2** — Right-click invocation always opens the popup (predictability over situational routing); CTI cache and history clarified as separate stores with combined "Clear CTI data" action; sidebar render order specified (category sequence, then alphabetical by label).
@@ -89,7 +90,10 @@ interface MimirModule {
   // Users can individually disable any registered action in settings.
   contextMenu?: {
     title: string;               // e.g. "Decode with Mimir"
-    onInvoke: (selection: string) => void;  // typically: open popup, route to this module, prefill
+    // Popup-mode handler. Omitted for background-mode modules whose action
+    // runs in the service worker (e.g. Log Analysis) — see §4.3. The SW-side
+    // registry (src/modules/<id>/context-menu.ts) carries the actual handler.
+    onInvoke?: (selection: string) => void;
   };
 }
 
@@ -113,11 +117,47 @@ No dynamic code loading at runtime — MV3 CSP forbids it anyway, and we have no
 
 ### 4.3 Context Menu Wiring
 
-At extension startup the service worker walks the registry, collects every module that declares a `contextMenu`, and registers a `chrome.contextMenus` entry for each — **subject to the user's per-action toggle in settings** (default: enabled).
+#### Two parallel registries
 
-When the user toggles an action in settings, the service worker incrementally re-registers the affected entry without rebuilding the full menu. When the user invokes a context-menu entry, the worker **always opens the popup** (even if the standalone window is also open), switches to the target module, and prefills the input via the module's `onInvoke` handler. Popup is the consistent target — chosen for predictability over situational cleverness.
+The popup uses `MimirModule.contextMenu` to render the per-action toggle list in Settings and to carry popup-mode `onInvoke` handlers. The service worker uses a **separate** registry: each opt-in module ships a sibling file `src/modules/<id>/context-menu.ts` exporting a `ContextMenuEntry`. A second `require.context` in `src/background/context-menu-registry.ts` collects them at build time. This keeps React (and every module's component code) out of the SW bundle while still allowing modules to discover-not-hardcode their right-click presence.
 
-A module that does not declare `contextMenu` simply does not appear in the right-click menu at all. The right-click surface is therefore opt-in at two levels: the module author opts in by declaring it, and the user opts in (or opts out) per action.
+```typescript
+type ContextMenuEntry =
+  | { moduleId; title; contexts?; invocation: { kind: "popup" } }
+  | { moduleId; title; contexts?; invocation: { kind: "background"; run: (selection) => Promise<void> } };
+```
+
+#### Lifecycle
+
+- **Startup** (`onInstalled` + `onStartup`): SW calls `removeAll()`, then walks the SW registry and creates one entry per module where `settings.contextMenu[id] !== false` (default: enabled per PRD §7.2). Idempotent across worker revivals — Chromium persists context-menu state across SW restarts, so the unconditional `removeAll` avoids duplicate-id errors when the worker restarts mid-session.
+- **Settings change**: top-level `chrome.storage.onChanged` listener watches the `settings` key. When `settings.contextMenu` toggles, only the affected entries are created or removed — no full rebuild, no flicker, no race against in-flight clicks.
+- **Click**: top-level `onClicked` listener (registered at module top so it survives worker restart) dispatches based on `invocation.kind`.
+
+#### Popup-mode invocation
+
+The SW writes `{ moduleId, selection, ts }` to `chrome.storage.local` under `modules.contextMenu.pending` and calls `chrome.action.openPopup()`. The popup, mounted with `useContextMenuDispatcher()` at the App root, drains the pending key on mount AND subscribes to `storage.onChanged` for that key — so "popup already open" and "popup just opened" both route through the same path. The popup applies the handoff via a single-slot `pendingInput` Zustand store; each module's component reads its slot in a `useEffect` and clears it. A 10s TTL on the pending key guards against stale handoffs from crashed prior sessions.
+
+`chrome.action.openPopup()` is best-effort — it can reject on Chromium <127, on focus-blocking states (DevTools, full-screen video), or on Firefox versions without support. Failures are non-fatal because the popup-side `storage.onChanged` listener handles delivery whenever the popup opens. Falling back to a separate window is deliberately not done; popup is the consistent target.
+
+#### Background-mode invocation
+
+For long-running async work, popup-mode is too disruptive — the user wants to keep working. Log Analysis runs in background mode: the SW invokes `entry.invocation.run(selection)` directly, the runner manages its own pending/completion state, and the toolbar action badge surfaces the result.
+
+Badge rules:
+- `pending > 0`: show pending count, amber background.
+- `pending === 0 && unread > 0`: show unread count, blue background. "Unread" is derived from `analysis.history` entries newer than `settings.lastPopupOpenedTs`.
+- otherwise: empty.
+
+When the popup mounts, `useContextMenuDispatcher()` sends a `popup.opened` message; the SW updates `settings.lastPopupOpenedTs = Date.now()` and refreshes the badge (effectively clearing unread). Pending count is in-memory only; on SW restart it resets to 0, since any in-flight call terminates with the worker. Unread is recomputed from history each refresh, so it survives restart correctly without any persisted counter.
+
+A module that does not declare `contextMenu` (popup-side OR SW-side) simply does not appear in the right-click menu at all. The right-click surface is opt-in at two levels: the module author opts in by declaring it, and the user opts in (or opts out) per action via settings.
+
+#### Cross-browser
+
+- Chromium uses `chrome.contextMenus.*` (callback-based).
+- Firefox uses `browser.menus.*` (Promise-based; `browser.contextMenus` is a deprecated alias and intentionally not used).
+- The shim in `src/browser-compat/menus.ts` normalizes both behind a Promise-returning API and swallows duplicate-id and not-found errors so callers stay naive.
+- `chrome.action.openPopup()` works on both surfaces (Chromium 127+, Firefox 109+) when called from a context-menu user-gesture; the fallback path described above covers everything else.
 
 ### 4.4 Adding a Custom Module
 
@@ -241,8 +281,9 @@ The Log Analysis module keeps a local history of the **last 10 analyses**. Each 
 
 - `timestamp`
 - `input` — the raw log content the user submitted
-- `response` — the AI's Markdown response
+- `response` — the AI's Markdown response (or, for failed background runs, the error message)
 - `provider` — which AI provider was used (so the user can see e.g. "this was Ollama llama3 vs. Anthropic")
+- `error?: boolean` — present and `true` when the analysis failed (e.g. no provider configured, AI endpoint unreachable, or provider returned a non-2xx). Failed entries render distinctly in the history pane and main view; `response` carries the error message. Optional and backwards-compatible.
 
 Eviction is straightforward FIFO at the cap (oldest goes when an 11th would be added). No TTL — entries live until they're pushed out by newer ones or the user clears the history.
 
@@ -257,13 +298,15 @@ The 10-entry cap is intentionally small. If users start asking for more, it gets
 Single `StorageManager` facade over `chrome.storage.local`. Keys are namespaced:
 
 ```
-settings.*                — user preferences, AI provider config, detector toggles
-settings.contextMenu.*    — per-action enable/disable toggles, keyed by module id
-apikeys.*                 — provider API keys (plaintext; documented in PRD)
-modules.*                 — per-module UI state (session restoration); keyed by module id
-cti.history.*             — unified CTI lookup store (audit log + response cache, 100 max, LRU)
-analysis.history.*        — Log Analysis history (last 10 runs)
-prompts.*                 — user-customized system prompts
+settings.*                       — user preferences, AI provider config, detector toggles
+settings.contextMenu.*           — per-action enable/disable toggles, keyed by module id
+settings.lastPopupOpenedTs       — epoch ms; badge "unread" cutoff for background analyses
+apikeys.*                        — provider API keys (plaintext; documented in PRD)
+modules.*                        — per-module UI state (session restoration); keyed by module id
+modules.contextMenu.pending      — single-slot popup-mode handoff { moduleId, selection, ts }
+cti.history.*                    — unified CTI lookup store (audit log + response cache, 100 max, LRU)
+analysis.history.*               — Log Analysis history (last 10 runs)
+prompts.*                        — user-customized system prompts
 ```
 
 No `chrome.storage.sync`. History stays on the device.

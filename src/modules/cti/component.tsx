@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
   CtiLookupRequest,
@@ -87,9 +87,18 @@ export const CtiComponent: React.FC = () => {
   });
 
   const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
+  const pendingInput = useMimirStore((s) => s.pendingInput);
+  const setPendingInput = useMimirStore((s) => s.setPendingInput);
   const [settings] = useSettings();
   const [abuseipdbKey] = useApiKey("abuseipdb");
   const [abusechKey] = useApiKey("abusech");
+
+  useEffect(() => {
+    if (pendingInput?.moduleId !== "cti") return;
+    setInput(pendingInput.value);
+    setChoice("auto");
+    setPendingInput(null);
+  }, [pendingInput, setPendingInput]);
 
   const setCard = (provider: CtiProvider, state: CardState): void => {
     setCards((prev) => ({ ...prev, [provider]: state }));

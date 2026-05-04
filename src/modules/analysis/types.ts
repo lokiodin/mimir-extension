@@ -7,4 +7,7 @@ export interface AnalysisHistoryEntry {
   response: string;
   providerLabel: string;
   providerType: AiProviderConfig["type"];
+  // True when the entry is a failed analysis. `response` then carries the
+  // error message and the history pane renders it distinctly.
+  error?: boolean;
 }
