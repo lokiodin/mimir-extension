@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import { applyRedactions } from "@/redaction/pipeline";
 import type { Detection, DetectionSource } from "@/redaction/types";
 
@@ -7,13 +8,11 @@ import type { Detection, DetectionSource } from "@/redaction/types";
 interface RedactionDiffProps {
   original: string;
   detections: ReadonlyArray<Detection>;
-  // Detection IDs the user has accepted (i.e. that get redacted on Apply).
-  // Identified by `${start}:${end}:${type}` since detections are otherwise
-  // ephemeral.
+  // Detection IDs currently redacted in the live output. Identified by
+  // `${start}:${end}:${type}` since detections are otherwise ephemeral.
   accepted: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onAddManual: (needle: string) => void;
-  onApply: (finalText: string) => void;
 }
 
 export function detectionId(d: Detection): string {
@@ -34,7 +33,6 @@ export const RedactionDiff: React.FC<RedactionDiffProps> = ({
   accepted,
   onToggle,
   onAddManual,
-  onApply,
 }) => {
   const [manualDraft, setManualDraft] = useState("");
 
@@ -53,10 +51,6 @@ export const RedactionDiff: React.FC<RedactionDiffProps> = ({
     if (needle.length === 0) return;
     onAddManual(needle);
     setManualDraft("");
-  };
-
-  const handleApply = (): void => {
-    onApply(preview);
   };
 
   // Synchronized scrolling between the two panes. A guard flag prevents
@@ -106,10 +100,17 @@ export const RedactionDiff: React.FC<RedactionDiffProps> = ({
           />
         </Pane>
         <Pane
-          label="Redacted preview"
+          label="Output"
           scrollRef={rightScrollRef}
           onScroll={() =>
             mirrorScroll(rightScrollRef.current, leftScrollRef.current)
+          }
+          cornerSlot={
+            <CopyIconButton
+              text={preview}
+              label="Copy redacted text"
+              className="!top-1 !right-1"
+            />
           }
         >
           <pre className="whitespace-pre-wrap break-words font-mono text-xs text-gray-100">
@@ -139,12 +140,6 @@ export const RedactionDiff: React.FC<RedactionDiffProps> = ({
         >
           Add manual
         </button>
-        <button
-          onClick={handleApply}
-          className="ml-auto px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800"
-        >
-          Apply
-        </button>
       </div>
 
       <Legend />
@@ -157,20 +152,28 @@ interface PaneProps {
   children: React.ReactNode;
   scrollRef?: React.Ref<HTMLDivElement>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
+  cornerSlot?: React.ReactNode;
 }
 
-const Pane: React.FC<PaneProps> = ({ label, children, scrollRef, onScroll }) => (
-  <div className="flex flex-col min-h-0 min-w-0 border border-gray-700 rounded bg-gray-900">
+const Pane: React.FC<PaneProps> = ({
+  label,
+  children,
+  scrollRef,
+  onScroll,
+  cornerSlot,
+}) => (
+  <div className="relative flex flex-col min-h-0 min-w-0 border border-gray-700 rounded bg-gray-900">
     <div className="px-2 py-1 border-b border-gray-700 text-xs text-gray-400">
       {label}
     </div>
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className="flex-1 min-h-0 overflow-auto p-2"
+      className="flex-1 min-h-0 overflow-auto p-2 pr-8"
     >
       {children}
     </div>
+    {cornerSlot}
   </div>
 );
 

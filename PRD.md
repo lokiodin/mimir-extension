@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 3.4 |
+| Document Version | 3.5 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **3.5** — Redaction Stage 3 drops the explicit "Apply" step; the output panel now re-derives live from the current accept/reject set and any manual additions. Copy is via the in-corner copy icon.
 - **3.4** — CTI cache and history merged into a single store (TTL marks entries stale rather than deleting; LRU at 100 is the only eviction). Log Analysis module gains a local history of the last 10 analyses with a clear action.
 - **3.3** — CTI cache and history confirmed as separate stores with combined "Clear CTI data" action; Defang module covers URLs, IPs, and domains; sidebar ordering rule (category then label); MIT license declared in metadata; right-click invocation always opens the popup.
 - **3.2** — Closed remaining open questions: payload library v1 set is XSS + SQLi only; risks R1/R2 acknowledged as accepted.
@@ -123,7 +124,7 @@ Redaction is its own module the user invokes deliberately — it is not gated in
 
 1. **Stage 1 — Deterministic detectors.** Regex/pattern matchers for IPs, emails, FQDNs, AWS/GitHub tokens, JWTs, private keys, MAC addresses, user paths, etc.
 2. **Stage 2 — Optional AI enrichment.** Off by default. If the user enables it, the configured AI is asked to flag additional candidates Stage 1 missed. Cannot unflag Stage 1 hits.
-3. **Stage 3 — User review.** Diff view of original vs. redacted; per-detection accept/reject; manual additions allowed; the user clicks "Apply" to get the redacted text.
+3. **Stage 3 — User review.** Diff view of original vs. redacted; per-detection accept/reject; manual additions allowed. The redacted output updates live as the user toggles detections or adds manual entries — no explicit "Apply" step.
 
 Output goes to the clipboard or to whichever module the user pastes it into. **The redaction module never automatically forwards text to another module.**
 

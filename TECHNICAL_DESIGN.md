@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Companion Doc | `PRD.md` v3.4 |
-| Document Version | 2.5 |
+| Companion Doc | `PRD.md` v3.5 |
+| Document Version | 2.6 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.6** — §5.4 updated: Stage 3 output panel is now a live-derived read-only textarea; the "Apply" button is removed. §5.1 diagram updated accordingly.
 - **2.5** — Right-click integration wired for Encoding, Defang, CTI, and Log Analysis. §4.1 widens `MimirModule.contextMenu.onInvoke` to optional (background-mode modules omit it). §4.3 rewritten to describe per-module invocation kinds: popup-mode (default — opens popup, switches module, prefills) and background-mode (Log Analysis — runs in SW, lands in history, surfaces via toolbar badge). New SW-side parallel registry: `src/modules/<id>/context-menu.ts` sibling files keep React out of the background bundle. §8 gains an optional `error?: boolean` flag on history entries so failed background analyses render distinctly. §9 storage namespaces gain `modules.contextMenu.pending` (popup-mode handoff) and `settings.lastPopupOpenedTs` (badge unread cutoff).
 - **2.4** — `TextTransformPanel` interface (§10.1) gains four optional fields populated by its first two callers: `group` and `inverse` on each transform (Encoding uses `group` for optgroups; Defang uses `inverse` so its bidirectional swap also flips to the paired transform), and controlled-input props `value`/`onValueChange` and `transformId`/`onTransformIdChange` (Encoding uses these to persist input across popup reopens). All four are optional and backwards-compatible with the v2.3 documented use case.
 - **2.3** — CTI cache and history collapsed into a single unified store (TTL = staleness, not deletion; LRU at 100). New §8 documents Log Analysis history (last 10 entries, FIFO). New §10.1 specifies the shared `TextTransformPanel` component for input-transform-output modules. Sections renumbered.
@@ -185,7 +186,7 @@ User pastes text into Redaction module
    │                                       invariant: Stage 1 placeholders are never un-replaced
    ▼
 [Stage 3: User review UI]            ──►  diff view; user accepts/rejects each; can add manual
-   │                                       produce: (finalRedactedText)
+   │                                       live-derived: applyRedactions(input, accepted)
    ▼
 [Output: clipboard, or user paste into another module]
 ```
@@ -223,7 +224,7 @@ If the AI is unreachable or returns malformed output, Stage 2 is skipped silentl
 
 ### 5.4 Stage 3 — User Review UI
 
-Split-pane diff. Left: original with highlighted detections. Right: redacted preview. Per-detection accept/reject controls. A free-text "add manual redaction" box. An "Apply" button finalizes the redacted text into the output panel.
+Split-pane diff. Left: original with highlighted detections (click to toggle accept/reject). Right: live "Output" pane — re-derives from `(originalText, currentDetections, acceptedSet)` via `applyRedactions` on every change, with an in-corner `<CopyIconButton>`. A free-text "add manual redaction" box sits below the panes. No "Apply" step; no separate output textarea.
 
 ### 5.5 Benchmark Corpus
 

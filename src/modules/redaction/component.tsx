@@ -1,14 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/storage/context";
 import { useMimirStore } from "@/store";
-import { CopyIconButton } from "@/components/CopyIconButton";
 import { RedactionDiff, detectionId } from "@/components/RedactionDiff";
-import {
-  applyRedactions,
-  mergeManual,
-  runStage1,
-  runStage2,
-} from "@/redaction/pipeline";
+import { mergeManual, runStage1, runStage2 } from "@/redaction/pipeline";
 import {
   createPlaceholderState,
   type Detection,
@@ -22,7 +16,7 @@ export const RedactionComponent: React.FC = () => {
   const [input, setInput] = useState("");
   const [detections, setDetections] = useState<Detection[]>([]);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
-  const [output, setOutput] = useState<string | null>(null);
+  const [stage1Ran, setStage1Ran] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stage2Loading, setStage2Loading] = useState(false);
 
@@ -71,13 +65,13 @@ export const RedactionComponent: React.FC = () => {
     stateRef.current = createPlaceholderState();
     setDetections([]);
     setAccepted(new Set());
-    setOutput(null);
+    setStage1Ran(false);
     setErrorMessage(null);
   };
 
   const handleInputChange = (value: string): void => {
     setInput(value);
-    if (detections.length > 0 || output !== null) {
+    if (stage1Ran) {
       resetSession();
     }
   };
@@ -85,11 +79,11 @@ export const RedactionComponent: React.FC = () => {
   const handleStage1 = (): void => {
     if (input.trim() === "") return;
     setErrorMessage(null);
-    setOutput(null);
     stateRef.current = createPlaceholderState();
     const next = runStage1(input, detectorEnabled, stateRef.current);
     setDetections(next);
     setAccepted(new Set(next.map(detectionId)));
+    setStage1Ran(true);
   };
 
   const handleStage2 = async (): Promise<void> => {
@@ -149,15 +143,6 @@ export const RedactionComponent: React.FC = () => {
     });
   };
 
-  const handleApply = (finalText: string): void => {
-    setOutput(finalText);
-  };
-
-  const livePreview = useMemo(() => {
-    const accepts = detections.filter((d) => accepted.has(detectionId(d)));
-    return applyRedactions(input, accepts);
-  }, [input, detections, accepted]);
-
   if (!settings) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -167,7 +152,6 @@ export const RedactionComponent: React.FC = () => {
   }
 
   const noProviders = settings.aiProviders.length === 0;
-  const stage1HasRun = detections.length > 0 || output !== null;
 
   return (
     <div className="flex flex-col h-full gap-3 min-h-0">
@@ -228,7 +212,7 @@ export const RedactionComponent: React.FC = () => {
           </>
         )}
 
-        {stage1HasRun && (
+        {stage1Ran && (
           <button
             onClick={resetSession}
             className="ml-auto px-2 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600"
@@ -255,43 +239,22 @@ export const RedactionComponent: React.FC = () => {
         </div>
       )}
 
-      {detections.length > 0 ? (
-        <RedactionDiff
-          original={input}
-          detections={detections}
-          accepted={accepted}
-          onToggle={handleToggle}
-          onAddManual={handleAddManual}
-          onApply={handleApply}
-        />
-      ) : (
-        stage1HasRun && (
-          <p className="text-sm text-gray-500">
-            No detections found. Add manual redactions in the diff view, or
-            adjust detector toggles in Settings.
-          </p>
-        )
-      )}
-
-      {output !== null && (
-        <div className="flex flex-col gap-1 border-t border-gray-700 pt-2 min-h-0">
-          <span className="text-xs text-gray-400">Output</span>
-          <div className="relative">
-            <textarea
-              readOnly
-              value={output}
-              className="w-full min-h-20 max-h-60 bg-gray-900 text-gray-100 border border-gray-700 rounded px-2 py-1 pr-8 text-sm font-mono resize-y"
-            />
-            <CopyIconButton text={output} label="Copy redacted text" />
-          </div>
-        </div>
-      )}
-
-      {detections.length > 0 && output === null && (
-        <p className="text-xs text-gray-500">
-          Live preview: {livePreview.length} chars after applying current
-          accept/reject set. Click Apply in the diff to lock the output here.
-        </p>
+      {stage1Ran && (
+        <>
+          <RedactionDiff
+            original={input}
+            detections={detections}
+            accepted={accepted}
+            onToggle={handleToggle}
+            onAddManual={handleAddManual}
+          />
+          {detections.length === 0 && (
+            <p className="text-xs text-gray-500">
+              No detections — text is unchanged. Use the manual-add field above
+              to redact a substring by hand.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
