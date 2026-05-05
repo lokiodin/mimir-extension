@@ -3,7 +3,7 @@
   "name": "Mimir",
   "version": "1.0.0",
   "description": "Cybersecurity toolkit — encoding, CTI, log analysis, redaction, payloads",
-  "permissions": ["storage", "contextMenus", "activeTab", "alarms"],
+  "permissions": ["storage", "contextMenus", "activeTab", "alarms", "clipboardWrite"],
   "host_permissions": [
     "https://www.virustotal.com/*",
     "https://api.abuseipdb.com/*",

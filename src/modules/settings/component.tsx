@@ -15,17 +15,47 @@ import type {
 // AI provider API keys are namespaced by provider UUID (apikeys.ai.<id>)
 // so two providers of the same type (e.g. two OpenAI accounts) hold distinct keys.
 
-async function requestEndpointPermission(endpoint: string): Promise<boolean> {
+// Returns the host pattern (e.g. "http://localhost:11434/*") for an endpoint URL,
+// or null if the endpoint is empty, malformed, or not http(s) — in which case
+// there's nothing to grant.
+function endpointOrigin(endpoint: string): string | null {
   const trimmed = endpoint.trim();
-  if (trimmed === "") return true;
+  if (trimmed === "") return null;
   try {
     const url = new URL(trimmed);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return true;
-    const origin = `${url.protocol}//${url.host}/*`;
-    return await chrome.permissions.request({ origins: [origin] });
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return `${url.protocol}//${url.host}/*`;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function endpointHost(endpoint: string): string | null {
+  const trimmed = endpoint.trim();
+  if (trimmed === "") return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.host;
+  } catch {
+    return null;
+  }
+}
+
+// Must be called from a user-gesture context. Firefox rejects
+// permissions.request() outside one (Chromium tolerates it but we don't
+// rely on that). Wired only to the explicit "Grant access" button and to
+// the Test button — never to blur, change, or save handlers.
+async function requestEndpointPermission(endpoint: string): Promise<boolean> {
+  const origin = endpointOrigin(endpoint);
+  if (origin === null) return true;
+  return chrome.permissions.request({ origins: [origin] });
+}
+
+async function endpointPermissionGranted(endpoint: string): Promise<boolean> {
+  const origin = endpointOrigin(endpoint);
+  if (origin === null) return true;
+  return chrome.permissions.contains({ origins: [origin] });
 }
 
 interface SectionProps {
@@ -402,6 +432,7 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   const [keyApiKey, setKeyApiKey, keyLoading] = useApiKey(`ai.${provider.id}`);
   const [keyDraft, setKeyDraft] = useState(keyApiKey ?? "");
   const [showKey, setShowKey] = useState(false);
+  const [endpointGranted, setEndpointGranted] = useState<boolean | null>(null);
 
   React.useEffect(() => {
     setEndpointDraft(provider.endpoint);
@@ -411,23 +442,33 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
     setKeyDraft(keyApiKey ?? "");
   }, [keyApiKey]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    endpointPermissionGranted(endpointDraft)
+      .then((g) => {
+        if (!cancelled) setEndpointGranted(g);
+      })
+      .catch(() => {
+        if (!cancelled) setEndpointGranted(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [endpointDraft]);
+
   const requiresKey =
     provider.type === "openai" || provider.type === "anthropic";
   const acceptsKey =
     requiresKey || provider.type === "openai-compatible";
 
   const handleEndpointBlur = async (): Promise<void> => {
-    if (endpointDraft === provider.endpoint) {
-      // No change.
-      if (endpointDraft.trim() !== "") {
-        void requestEndpointPermission(endpointDraft);
-      }
-      return;
-    }
+    if (endpointDraft === provider.endpoint) return;
     await onUpdate({ endpoint: endpointDraft });
-    if (endpointDraft.trim() !== "") {
-      void requestEndpointPermission(endpointDraft);
-    }
+  };
+
+  const handleGrantAccess = async (): Promise<void> => {
+    await requestEndpointPermission(endpointDraft);
+    setEndpointGranted(await endpointPermissionGranted(endpointDraft));
   };
 
   const handleSaveKey = async (): Promise<void> => {
@@ -441,6 +482,7 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   const handleTest = async (): Promise<void> => {
     setTestStatus({ kind: "running" });
     const granted = await requestEndpointPermission(endpointDraft);
+    setEndpointGranted(granted);
     if (!granted) {
       setTestStatus({
         kind: "error",
@@ -507,6 +549,15 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
           placeholder="http://localhost:11434"
           className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
         />
+        {endpointGranted === false && endpointHost(endpointDraft) && (
+          <button
+            type="button"
+            onClick={handleGrantAccess}
+            className="w-full px-2 py-1 bg-amber-900 text-amber-100 rounded text-xs hover:bg-amber-800 text-left"
+          >
+            Grant access to {endpointHost(endpointDraft)}
+          </button>
+        )}
         <input
           type="text"
           value={provider.model ?? ""}
