@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MarkdownView } from "@/components/MarkdownView";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import { useSettings } from "@/storage/context";
 import { useMimirStore } from "@/store";
 import { pushAnalysisHistory } from "@/modules/analysis/history";
@@ -46,22 +47,6 @@ export const AnalysisComponent: React.FC = () => {
   const [providerId, setProviderId] = useState<string>("");
   const [current, setCurrent] = useState<CurrentView | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setCopied(false);
-  }, [current?.id]);
-
-  const handleCopy = async (): Promise<void> => {
-    if (!current) return;
-    try {
-      await navigator.clipboard.writeText(current.response);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  };
 
   // Default the per-run provider selector to the global default once settings load.
   useEffect(() => {
@@ -213,42 +198,10 @@ export const AnalysisComponent: React.FC = () => {
                   </p>
                 ) : (
                   <>
-                    <button
-                      onClick={handleCopy}
-                      title={copied ? "Copied" : "Copy raw Markdown"}
-                      aria-label="Copy raw Markdown"
-                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-100 hover:bg-gray-800"
-                    >
-                      {copied ? (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      )}
-                    </button>
+                    <CopyIconButton
+                      text={current.response}
+                      label="Copy raw Markdown"
+                    />
                     <div className="text-xs text-gray-500 mb-2 pr-8 flex items-center gap-2">
                       {current.error && (
                         <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-red-950/60 text-red-200 border border-red-900 rounded">

@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from "react";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import { CATEGORIES } from "@/modules/payloads/registry";
 import type { PayloadEntry } from "@/modules/payloads/types";
-
-const COPY_BUTTON_CLASS =
-  "text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-gray-800";
 
 const matches = (entry: PayloadEntry, needle: string): boolean => {
   if (needle === "") return true;
@@ -19,7 +17,6 @@ export const PayloadsComponent: React.FC = () => {
     CATEGORIES[0]?.id ?? "",
   );
   const [search, setSearch] = useState<string>("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const activeCategory =
     CATEGORIES.find((c) => c.id === activeCategoryId) ?? CATEGORIES[0];
@@ -28,20 +25,6 @@ export const PayloadsComponent: React.FC = () => {
     if (!activeCategory) return [];
     return activeCategory.entries.filter((e) => matches(e, search));
   }, [activeCategory, search]);
-
-  const copy = async (entry: PayloadEntry): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(entry.payload);
-      const key = `${activeCategory?.id ?? ""}/${entry.id}`;
-      setCopiedId(key);
-      window.setTimeout(() => {
-        setCopiedId((current) => (current === key ? null : current));
-      }, 1500);
-    } catch {
-      // Clipboard write can fail when the surface lacks focus; surface
-      // nothing — the user can re-trigger or select the text manually.
-    }
-  };
 
   if (!activeCategory) {
     return <p className="text-gray-500">No payload categories bundled.</p>;
@@ -82,41 +65,36 @@ export const PayloadsComponent: React.FC = () => {
           <p className="text-gray-500 text-sm">No payloads match.</p>
         ) : (
           filtered.map((entry) => {
-            const key = `${activeCategory.id}/${entry.id}`;
-            const isCopied = copiedId === key;
             return (
               <div
                 key={entry.id}
                 className="border border-gray-700 rounded p-2 bg-gray-800/50 flex flex-col gap-1"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm text-gray-100 font-medium">
-                        {entry.label}
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-gray-100 font-medium">
+                      {entry.label}
+                    </span>
+                    {entry.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[10px] uppercase tracking-wide text-gray-400 bg-gray-900 border border-gray-700 rounded px-1 py-px"
+                      >
+                        {tag}
                       </span>
-                      {entry.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[10px] uppercase tracking-wide text-gray-400 bg-gray-900 border border-gray-700 rounded px-1 py-px"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-400">{entry.notes}</span>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => void copy(entry)}
-                    className={COPY_BUTTON_CLASS}
-                    aria-label={`Copy payload: ${entry.label}`}
-                  >
-                    {isCopied ? "Copied" : "Copy"}
-                  </button>
+                  <span className="text-xs text-gray-400">{entry.notes}</span>
                 </div>
-                <pre className="text-xs font-mono text-gray-100 bg-gray-900 border border-gray-800 rounded p-2 overflow-x-auto whitespace-pre">
-                  {entry.payload}
-                </pre>
+                <div className="relative">
+                  <pre className="text-xs font-mono text-gray-100 bg-gray-900 border border-gray-800 rounded p-2 pr-8 overflow-x-auto whitespace-pre">
+                    {entry.payload}
+                  </pre>
+                  <CopyIconButton
+                    text={entry.payload}
+                    label={`Copy payload: ${entry.label}`}
+                  />
+                </div>
               </div>
             );
           })

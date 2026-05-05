@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/storage/context";
 import { useMimirStore } from "@/store";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import { RedactionDiff, detectionId } from "@/components/RedactionDiff";
 import {
   applyRedactions,
@@ -24,7 +25,6 @@ export const RedactionComponent: React.FC = () => {
   const [output, setOutput] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stage2Loading, setStage2Loading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Per-session Stage 2 toggle. Initialized from settings each time settings
   // load; user can flip it for the current session without persisting.
@@ -151,18 +151,6 @@ export const RedactionComponent: React.FC = () => {
 
   const handleApply = (finalText: string): void => {
     setOutput(finalText);
-    setCopied(false);
-  };
-
-  const handleCopy = async (): Promise<void> => {
-    if (output === null) return;
-    try {
-      await navigator.clipboard.writeText(output);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
   };
 
   const livePreview = useMemo(() => {
@@ -287,21 +275,15 @@ export const RedactionComponent: React.FC = () => {
 
       {output !== null && (
         <div className="flex flex-col gap-1 border-t border-gray-700 pt-2 min-h-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Output</span>
-            <button
-              onClick={handleCopy}
-              className="ml-auto px-2 py-1 bg-gray-700 text-gray-100 rounded text-xs hover:bg-gray-600"
-              title={copied ? "Copied" : "Copy redacted text"}
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
+          <span className="text-xs text-gray-400">Output</span>
+          <div className="relative">
+            <textarea
+              readOnly
+              value={output}
+              className="w-full min-h-20 max-h-60 bg-gray-900 text-gray-100 border border-gray-700 rounded px-2 py-1 pr-8 text-sm font-mono resize-y"
+            />
+            <CopyIconButton text={output} label="Copy redacted text" />
           </div>
-          <textarea
-            readOnly
-            value={output}
-            className="min-h-20 max-h-60 bg-gray-900 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono resize-y"
-          />
         </div>
       )}
 

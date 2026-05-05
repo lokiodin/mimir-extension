@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
+import { CopyIconButton } from "@/components/CopyIconButton";
 
 // Shared "input -> transform-selector -> output" shell used by Encoding,
 // Defang, and any future transform-shaped module. See TECHNICAL_DESIGN.md
@@ -32,9 +33,7 @@ export interface TextTransformPanelProps {
   onTransformIdChange?: (id: string) => void;
 }
 
-type CopyTarget = "input" | "output";
-
-const COPY_BUTTON_CLASS =
+const SWAP_BUTTON_CLASS =
   "text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-gray-800";
 
 export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
@@ -60,7 +59,6 @@ export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
     useState<string>(initialTransformId);
   const [output, setOutput] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<CopyTarget | null>(null);
 
   const isValueControlled = valueProp !== undefined;
   const isTransformControlled = transformIdProp !== undefined;
@@ -117,20 +115,6 @@ export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
       cancelled = true;
     };
   }, [value, transformId, transforms]);
-
-  const copyText = async (text: string, target: CopyTarget): Promise<void> => {
-    if (text === "") return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(target);
-      window.setTimeout(() => {
-        setCopied((current) => (current === target ? null : current));
-      }, 1500);
-    } catch {
-      // Clipboard write can fail when the surface lacks focus; surface
-      // nothing — the user can re-trigger or select the text manually.
-    }
-  };
 
   const handleSwap = (): void => {
     if (output === "") return;
@@ -192,7 +176,7 @@ export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
           <button
             onClick={handleSwap}
             disabled={output === ""}
-            className={COPY_BUTTON_CLASS}
+            className={SWAP_BUTTON_CLASS}
             title="Move output to input and switch to the inverse transform"
           >
             Swap
@@ -201,25 +185,21 @@ export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
       </div>
 
       <div className="flex flex-col flex-1 min-h-0 gap-1">
-        <div className="flex items-center justify-between">
-          <label htmlFor={inputId} className="text-xs text-gray-400">
-            {inputLabel}
-          </label>
-          <button
-            onClick={() => void copyText(value, "input")}
-            disabled={value === ""}
-            className={COPY_BUTTON_CLASS}
-          >
-            {copied === "input" ? "Copied" : "Copy"}
-          </button>
+        <label htmlFor={inputId} className="text-xs text-gray-400">
+          {inputLabel}
+        </label>
+        <div className="relative flex-1 min-h-0 flex">
+          <textarea
+            id={inputId}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            spellCheck={false}
+            className="flex-1 min-h-[6rem] resize-none bg-gray-800 text-gray-100 border border-gray-700 rounded p-2 pr-8 font-mono text-sm focus:outline-none focus:border-gray-500"
+          />
+          {value !== "" && (
+            <CopyIconButton text={value} label={`Copy ${inputLabel.toLowerCase()}`} />
+          )}
         </div>
-        <textarea
-          id={inputId}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          spellCheck={false}
-          className="flex-1 min-h-[6rem] resize-none bg-gray-800 text-gray-100 border border-gray-700 rounded p-2 font-mono text-sm focus:outline-none focus:border-gray-500"
-        />
       </div>
 
       {error !== null && (
@@ -232,25 +212,21 @@ export const TextTransformPanel: React.FC<TextTransformPanelProps> = ({
       )}
 
       <div className="flex flex-col flex-1 min-h-0 gap-1">
-        <div className="flex items-center justify-between">
-          <label htmlFor={outputId} className="text-xs text-gray-400">
-            {outputLabel}
-          </label>
-          <button
-            onClick={() => void copyText(output, "output")}
-            disabled={output === ""}
-            className={COPY_BUTTON_CLASS}
-          >
-            {copied === "output" ? "Copied" : "Copy"}
-          </button>
+        <label htmlFor={outputId} className="text-xs text-gray-400">
+          {outputLabel}
+        </label>
+        <div className="relative flex-1 min-h-0 flex">
+          <textarea
+            id={outputId}
+            value={output}
+            readOnly
+            spellCheck={false}
+            className="flex-1 min-h-[6rem] resize-none bg-gray-800 text-gray-100 border border-gray-700 rounded p-2 pr-8 font-mono text-sm focus:outline-none"
+          />
+          {output !== "" && (
+            <CopyIconButton text={output} label={`Copy ${outputLabel.toLowerCase()}`} />
+          )}
         </div>
-        <textarea
-          id={outputId}
-          value={output}
-          readOnly
-          spellCheck={false}
-          className="flex-1 min-h-[6rem] resize-none bg-gray-800 text-gray-100 border border-gray-700 rounded p-2 font-mono text-sm focus:outline-none"
-        />
       </div>
     </div>
   );
