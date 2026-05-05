@@ -3,8 +3,6 @@
 // and `.` ↔ `[.]`. Other defang dialects (`(dot)`, `hXXp`, `[://]` without
 // bracketed scheme letters, `.example[.]com`) are deferred.
 
-import type { TextTransform } from "@/components/TextTransformPanel";
-
 // URL match: scheme-prefixed runs, terminated by whitespace or characters
 // that don't appear inside URLs in practice. The host portion (between
 // `://` and the first `/`, `?`, or `#`) is the only place we replace dots —
@@ -137,10 +135,3 @@ export function defangAll(input: string): string {
 export function refangAll(input: string): string {
   return scanAndReplace(input, REFANG_RULES);
 }
-
-export type OperationId = "defang" | "refang";
-
-export const OPERATIONS: ReadonlyArray<TextTransform> = [
-  { id: "defang", label: "Defang", inverse: "refang", fn: defangAll },
-  { id: "refang", label: "Refang", inverse: "defang", fn: refangAll },
-];

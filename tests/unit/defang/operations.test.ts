@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   defangAll,
-  OPERATIONS,
   refangAll,
 } from "../../../src/modules/defang/operations";
 
@@ -189,14 +188,3 @@ describe("empty and no-match input", () => {
   });
 });
 
-describe("OPERATIONS registry", () => {
-  it("lists exactly defang and refang", () => {
-    expect(OPERATIONS.map((o) => o.id)).toEqual(["defang", "refang"]);
-  });
-
-  it("each transform points to its inverse", () => {
-    const byId = new Map(OPERATIONS.map((o) => [o.id, o]));
-    expect(byId.get("defang")?.inverse).toBe("refang");
-    expect(byId.get("refang")?.inverse).toBe("defang");
-  });
-});

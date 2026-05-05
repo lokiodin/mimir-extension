@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 3.5 |
+| Document Version | 3.6 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **3.6** — Defang module switches to a two-pane bidirectional UI (Fanged ↔ Defanged); the operation dropdown is removed for Defang only. Other Transform operations remain dropdown-driven.
 - **3.5** — Redaction Stage 3 drops the explicit "Apply" step; the output panel now re-derives live from the current accept/reject set and any manual additions. Copy is via the in-corner copy icon.
 - **3.4** — CTI cache and history merged into a single store (TTL marks entries stale rather than deleting; LRU at 100 is the only eviction). Log Analysis module gains a local history of the last 10 analyses with a clear action.
 - **3.3** — CTI cache and history confirmed as separate stores with combined "Clear CTI data" action; Defang module covers URLs, IPs, and domains; sidebar ordering rule (category then label); MIT license declared in metadata; right-click invocation always opens the popup.
@@ -82,7 +83,7 @@ There is no primary persona ranking. Modules are surfaced equally; users enable 
 
 | ID | Module | Notes |
 |---|---|---|
-| F-TRANSFORM | Transform | Single module covering all text-in / text-out conversions. Operations: Base64 (encode/decode), Hex (encode/decode), URL (encode/decode), HTML entities (encode/decode), JWT (decode-only in v1; signature verification deferred to v1.1+), Defang/Refang for URLs, IPs, and domains. User picks the operation from a dropdown; bulk input supported. |
+| F-TRANSFORM | Transform | Single module covering all text-in / text-out conversions. Operations: Base64 (encode/decode), Hex (encode/decode), URL (encode/decode), HTML entities (encode/decode), JWT (decode-only in v1; signature verification deferred to v1.1+), Defang/Refang for URLs, IPs, and domains. Encoding operations: user picks from a dropdown. Defang: two synchronized panes (Fanged ↔ Defanged) — typing in either pane updates the other live, no operation selector. Bulk input supported throughout. |
 | F-CTI | CTI Lookups | VirusTotal, AbuseIPDB, hunting.abuse.ch (web-request **and** API modes) |
 | F-PAY | Payload Library | Offline. Ships with a small curated default set: **XSS and SQLi for v1**. Other categories added in later versions. |
 | F-LOG | Log Analysis | Sends user-selected log content to the configured AI; renders Markdown + Mermaid response |
