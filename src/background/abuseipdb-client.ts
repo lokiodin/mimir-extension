@@ -39,6 +39,7 @@ function deriveVerdict(data: AbuseIPDBData | undefined): Verdict {
   const reports = data.totalReports ?? 0;
   if (score >= 75) return "malicious";
   if (score >= 25) return "suspicious";
+  if (data.isWhitelisted === true && score <= 5) return "clean";
   if (reports === 0 && score === 0) return "clean";
   return "unknown";
 }
