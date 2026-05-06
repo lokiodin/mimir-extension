@@ -107,6 +107,7 @@ export const AnalysisComponent: React.FC = () => {
 
   const handleHistorySelect = (entry: AnalysisHistoryEntry): void => {
     setErrorMessage(null);
+    setInput(entry.input);
     setCurrent({
       id: entry.id,
       timestamp: entry.timestamp,
