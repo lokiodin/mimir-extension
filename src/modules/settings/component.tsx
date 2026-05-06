@@ -423,6 +423,8 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   onSetDefault,
 }) => {
   const [endpointDraft, setEndpointDraft] = useState(provider.endpoint);
+  const [labelDraft, setLabelDraft] = useState(provider.label);
+  const [modelDraft, setModelDraft] = useState(provider.model ?? "");
   const [testStatus, setTestStatus] = useState<
     | { kind: "idle" }
     | { kind: "running" }
@@ -437,6 +439,14 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   React.useEffect(() => {
     setEndpointDraft(provider.endpoint);
   }, [provider.endpoint]);
+
+  React.useEffect(() => {
+    setLabelDraft(provider.label);
+  }, [provider.label]);
+
+  React.useEffect(() => {
+    setModelDraft(provider.model ?? "");
+  }, [provider.model]);
 
   React.useEffect(() => {
     setKeyDraft(keyApiKey ?? "");
@@ -464,6 +474,16 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   const handleEndpointBlur = async (): Promise<void> => {
     if (endpointDraft === provider.endpoint) return;
     await onUpdate({ endpoint: endpointDraft });
+  };
+
+  const handleLabelBlur = async (): Promise<void> => {
+    if (labelDraft === provider.label) return;
+    await onUpdate({ label: labelDraft });
+  };
+
+  const handleModelBlur = async (): Promise<void> => {
+    if (modelDraft === (provider.model ?? "")) return;
+    await onUpdate({ model: modelDraft });
   };
 
   const handleGrantAccess = async (): Promise<void> => {
@@ -521,8 +541,9 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={provider.label}
-            onChange={(e) => onUpdate({ label: e.target.value })}
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            onBlur={handleLabelBlur}
             placeholder="Provider name"
             className="flex-1 min-w-0 bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
           />
@@ -560,8 +581,9 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
         )}
         <input
           type="text"
-          value={provider.model ?? ""}
-          onChange={(e) => onUpdate({ model: e.target.value })}
+          value={modelDraft}
+          onChange={(e) => setModelDraft(e.target.value)}
+          onBlur={handleModelBlur}
           placeholder={MODEL_PLACEHOLDERS[provider.type]}
           className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
         />
