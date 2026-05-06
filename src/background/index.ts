@@ -5,7 +5,7 @@
 import { lookupVirusTotal } from "@/background/cti-client";
 import { lookupAbuseIPDB } from "@/background/abuseipdb-client";
 import { lookupAbusech } from "@/background/abusech-client";
-import { upsertCtiHistory } from "@/background/cti-history";
+import { upsertProviderResult } from "@/background/cti-history";
 import { installKeepaliveListener } from "@/background/keepalive";
 import { complete as aiComplete, testConnection as aiTestConnection } from "@/background/ai-client";
 import { getApiKey, getSettings } from "@/storage/manager";
@@ -90,8 +90,9 @@ function isAiTestConnectionRequest(
 async function handleCtiLookup(
   req: CtiLookupRequest,
 ): Promise<CtiLookupResponse> {
+  const settings = await getSettings();
+  const ttlHours = settings.ctiTtlHours;
   try {
-    const settings = await getSettings();
     let result: CtiResult;
     switch (req.provider) {
       case "virustotal":
@@ -99,7 +100,7 @@ async function handleCtiLookup(
           indicator: req.indicator,
           indicatorType: req.indicatorType,
           query: req.query,
-          ttlHours: settings.ctiTtlHours,
+          ttlHours,
         });
         break;
       case "abuseipdb":
@@ -107,7 +108,7 @@ async function handleCtiLookup(
           indicator: req.indicator,
           indicatorType: req.indicatorType,
           query: req.query,
-          ttlHours: settings.ctiTtlHours,
+          ttlHours,
         });
         break;
       case "abusech": {
@@ -116,17 +117,37 @@ async function handleCtiLookup(
           indicator: req.indicator,
           indicatorType: req.indicatorType,
           query: req.query,
-          ttlHours: settings.ctiTtlHours,
+          ttlHours,
           mode: settings.abusechMode,
           apiKey,
         });
         break;
       }
     }
-    await upsertCtiHistory(result);
+    await upsertProviderResult({
+      indicator: req.indicator,
+      indicatorType: req.indicatorType,
+      providerId: req.provider,
+      query: req.query,
+      verdict: result.verdict,
+      summary: result.summary,
+      response: result.response,
+      lookedUpAt: result.timestamp,
+      staleAfter: result.staleAfter,
+    });
     return { ok: true, result };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const now = Date.now();
+    await upsertProviderResult({
+      indicator: req.indicator,
+      indicatorType: req.indicatorType,
+      providerId: req.provider,
+      query: req.query,
+      lookedUpAt: now,
+      staleAfter: now + ttlHours * 3_600_000,
+      error: { kind: "lookup_failed", message },
+    });
     return { ok: false, error: message };
   }
 }

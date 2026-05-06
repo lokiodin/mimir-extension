@@ -31,6 +31,27 @@ export interface CtiResult {
   response: unknown;
 }
 
+// Persisted history shape: one entry per indicator, providers nested.
+// See TECHNICAL_DESIGN.md §6.
+
+export interface ProviderResult {
+  verdict: Verdict;
+  summary: CtiSummaryField[];
+  response: unknown;
+  lookedUpAt: number;
+  staleAfter: number;
+  error?: { kind: string; message: string };
+}
+
+export interface CtiHistoryEntry {
+  indicator: string;
+  indicatorType: IndicatorType;
+  query: string;
+  firstLookupAt: number;
+  lastLookupAt: number;
+  providers: Partial<Record<CtiProvider, ProviderResult>>;
+}
+
 export interface CtiLookupRequest {
   type: "cti.lookup";
   provider: CtiProvider;

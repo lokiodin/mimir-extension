@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 3.6 |
+| Document Version | 3.7 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **3.7** — CTI history collapsed to one entry per indicator, with each provider's result nested in a `providers` map. Clicking a history row no longer triggers a refetch — it renders stored data only; staleness is informational. Re-typing the indicator is the only path to fresh data.
 - **3.6** — Defang module switches to a two-pane bidirectional UI (Fanged ↔ Defanged); the operation dropdown is removed for Defang only. Other Transform operations remain dropdown-driven.
 - **3.5** — Redaction Stage 3 drops the explicit "Apply" step; the output panel now re-derives live from the current accept/reject set and any manual additions. Copy is via the in-corner copy icon.
 - **3.4** — CTI cache and history merged into a single store (TTL marks entries stale rather than deleting; LRU at 100 is the only eviction). Log Analysis module gains a local history of the last 10 analyses with a clear action.
@@ -102,9 +103,9 @@ Each context-menu action is **individually toggleable** by the user in settings 
 | F-CTI-1 | VirusTotal lookup by IP, domain, URL, file hash |
 | F-CTI-2 | AbuseIPDB lookup by IP |
 | F-CTI-3 | hunting.abuse.ch lookup, supporting both web-request mode and API-key mode (user choice) |
-| F-CTI-4 | **Unified CTI history** — every lookup is stored locally with timestamp, query, verdict, source, and the full provider response. Acts as both audit log and response cache in one store. |
-| F-CTI-5 | Configurable **TTL (72h default)** marks an entry as **stale** — clicking a stale entry re-fetches from the provider. Stale entries are not deleted automatically. |
-| F-CTI-6 | **Max 100 entries**, LRU eviction when the cap is hit. |
+| F-CTI-4 | **Unified CTI history** — every indicator is stored locally with results from every provider that ran (per-provider verdict and full response, plus first/last-lookup timestamps). Acts as both audit log and response cache in one store. |
+| F-CTI-5 | Configurable **TTL (72h default)** marks a provider's stored result as **stale** — display-only, informational. Clicking a row never triggers a refetch; the user re-types the indicator to refresh. |
+| F-CTI-6 | **Max 100 indicators**, LRU eviction by `lastLookupAt` when the cap is hit. |
 | F-CTI-7 | History export as CSV |
 | F-CTI-8 | "Clear CTI history" action wipes the entire store in one operation |
 

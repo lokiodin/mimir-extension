@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStorageRevision } from "@/storage/context";
 import { getCtiHistory } from "@/background/cti-history";
-import type { CtiResult, Verdict } from "@/background/cti-types";
+import type {
+  CtiHistoryEntry,
+  CtiProvider,
+  Verdict,
+} from "@/background/cti-types";
+import { aggregateVerdict, isAnyProviderStale } from "@/modules/cti/aggregation";
+import { ProviderIcon } from "@/modules/cti/provider-icons";
+
 const VERDICT_FILTERS: ReadonlyArray<"all" | Verdict> = [
   "all",
   "malicious",
@@ -18,6 +25,12 @@ const VERDICT_BADGE_CLASS: Record<Verdict, string> = {
   error: "bg-red-950 text-red-200",
 };
 
+const PROVIDERS: ReadonlyArray<CtiProvider> = [
+  "virustotal",
+  "abuseipdb",
+  "abusech",
+];
+
 function relativeTime(epochMs: number): string {
   const diff = Date.now() - epochMs;
   if (diff < 0) return "just now";
@@ -32,18 +45,16 @@ function relativeTime(epochMs: number): string {
 }
 
 export interface HistoryPaneProps {
-  onSelect: (entry: CtiResult) => void;
-  onRefresh: (entry: CtiResult) => void;
-  selectedKey: string | null;
+  onSelect: (entry: CtiHistoryEntry) => void;
+  selectedIndicator: string | null;
 }
 
 export const HistoryPane: React.FC<HistoryPaneProps> = ({
   onSelect,
-  onRefresh,
-  selectedKey,
+  selectedIndicator,
 }) => {
   const revision = useStorageRevision();
-  const [entries, setEntries] = useState<CtiResult[]>([]);
+  const [entries, setEntries] = useState<CtiHistoryEntry[]>([]);
   const [filter, setFilter] = useState<"all" | Verdict>("all");
 
   useEffect(() => {
@@ -62,16 +73,8 @@ export const HistoryPane: React.FC<HistoryPaneProps> = ({
 
   const filtered = useMemo(() => {
     if (filter === "all") return entries;
-    return entries.filter((e) => e.verdict === filter);
+    return entries.filter((e) => aggregateVerdict(e) === filter);
   }, [entries, filter]);
-
-  const handleRowClick = (entry: CtiResult): void => {
-    if (entry.staleAfter < Date.now()) {
-      onRefresh(entry);
-    } else {
-      onSelect(entry);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-2 h-full min-h-0">
@@ -100,22 +103,22 @@ export const HistoryPane: React.FC<HistoryPaneProps> = ({
         ) : (
           <ul className="divide-y divide-gray-800">
             {filtered.map((entry) => {
-              const key = `${entry.provider}:${entry.indicatorType}:${entry.indicator}`;
-              const isStale = entry.staleAfter < Date.now();
-              const isSelected = key === selectedKey;
+              const verdict = aggregateVerdict(entry);
+              const isStale = isAnyProviderStale(entry);
+              const isSelected = entry.indicator === selectedIndicator;
               return (
-                <li key={key}>
+                <li key={entry.indicator}>
                   <button
-                    onClick={() => handleRowClick(entry)}
+                    onClick={() => onSelect(entry)}
                     className={`w-full text-left px-2 py-1.5 hover:bg-gray-800 ${
                       isSelected ? "bg-gray-800" : ""
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded ${VERDICT_BADGE_CLASS[entry.verdict]}`}
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${VERDICT_BADGE_CLASS[verdict]}`}
                       >
-                        {entry.verdict}
+                        {verdict}
                       </span>
                       <span className="font-mono text-xs text-gray-100 truncate flex-1">
                         {entry.indicator}
@@ -126,9 +129,24 @@ export const HistoryPane: React.FC<HistoryPaneProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">
-                      {entry.provider} · {entry.indicatorType} ·{" "}
-                      {relativeTime(entry.timestamp)}
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1">
+                        {PROVIDERS.filter((p) => entry.providers[p]).map(
+                          (provider) => (
+                            <ProviderIcon
+                              key={provider}
+                              provider={provider}
+                              dim={
+                                entry.providers[provider]?.error !== undefined
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-500">
+                        {entry.indicatorType} ·{" "}
+                        {relativeTime(entry.lastLookupAt)}
+                      </span>
                     </div>
                   </button>
                 </li>

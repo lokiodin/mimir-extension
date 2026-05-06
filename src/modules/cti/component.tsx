@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
+  CtiHistoryEntry,
   CtiLookupRequest,
   CtiLookupResponse,
   CtiProvider,
@@ -54,10 +55,6 @@ type CardState =
   | { kind: "not-applicable"; reason: string }
   | { kind: "not-configured"; reason: string };
 
-function entryKey(e: CtiResult): string {
-  return `${e.provider}:${e.indicatorType}:${e.indicator}`;
-}
-
 async function sendLookup(req: CtiLookupRequest): Promise<CtiResult> {
   const response = (await chrome.runtime.sendMessage(req)) as
     | CtiLookupResponse
@@ -85,6 +82,7 @@ export const CtiComponent: React.FC = () => {
     abuseipdb: true,
     abusech: true,
   });
+  const [selectedIndicator, setSelectedIndicator] = useState<string | null>(null);
 
   const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
   const pendingInput = useMimirStore((s) => s.pendingInput);
@@ -206,38 +204,50 @@ export const CtiComponent: React.FC = () => {
     }
     setErrorMessage(null);
     const canonical = trimmed.toLowerCase();
+    setSelectedIndicator(canonical);
     for (const provider of PROVIDERS) {
       runForProvider(provider, canonical, indicatorType, trimmed);
     }
   };
 
-  const handleHistorySelect = (entry: CtiResult): void => {
+  const handleHistorySelect = (entry: CtiHistoryEntry): void => {
     setErrorMessage(null);
-    setCard(entry.provider, { kind: "result", result: entry });
-    setExpanded((prev) => ({ ...prev, [entry.provider]: true }));
-  };
-
-  const handleHistoryRefresh = (entry: CtiResult): void => {
-    setErrorMessage(null);
-    runForProvider(
-      entry.provider,
-      entry.indicator,
-      entry.indicatorType,
-      entry.query,
-    );
+    setSelectedIndicator(entry.indicator);
+    const next: Record<CtiProvider, CardState> = {
+      virustotal: { kind: "idle" },
+      abuseipdb: { kind: "idle" },
+      abusech: { kind: "idle" },
+    };
+    for (const provider of PROVIDERS) {
+      const slot = entry.providers[provider];
+      if (!slot) continue;
+      if (slot.error) {
+        next[provider] = { kind: "error", message: slot.error.message };
+      } else {
+        next[provider] = {
+          kind: "result",
+          result: {
+            provider,
+            indicatorType: entry.indicatorType,
+            indicator: entry.indicator,
+            query: entry.query,
+            timestamp: slot.lookedUpAt,
+            staleAfter: slot.staleAfter,
+            verdict: slot.verdict,
+            summary: slot.summary,
+            response: slot.response,
+          },
+        };
+      }
+    }
+    setCards(next);
+    setExpanded({ virustotal: true, abuseipdb: true, abusech: true });
   };
 
   const anyLoading = useMemo(
     () => PROVIDERS.some((p) => cards[p].kind === "loading"),
     [cards],
   );
-
-  const selectedKey = useMemo(() => {
-    const result = PROVIDERS.map((p) => cards[p])
-      .filter((s): s is { kind: "result"; result: CtiResult } => s.kind === "result")
-      .map((s) => entryKey(s.result));
-    return result[0] ?? null;
-  }, [cards]);
 
   return (
     <div className="flex flex-col h-full gap-3">
@@ -306,8 +316,7 @@ export const CtiComponent: React.FC = () => {
         <div className="min-w-0">
           <HistoryPane
             onSelect={handleHistorySelect}
-            onRefresh={handleHistoryRefresh}
-            selectedKey={selectedKey}
+            selectedIndicator={selectedIndicator}
           />
         </div>
       </div>

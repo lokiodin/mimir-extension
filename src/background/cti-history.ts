@@ -1,43 +1,128 @@
 // Unified CTI history store. See TECHNICAL_DESIGN.md §6 + §9.
-// One row per (provider, indicatorType, indicator). Newest-first. LRU at 100.
-// A new lookup of an existing key updates the row in place and moves it to
-// the front, rather than creating a duplicate.
+// One entry per normalized indicator; per-provider results nested in
+// `providers`. Newest-first by lastLookupAt. LRU at 100. Re-lookups update
+// the existing entry in place and move it to the front.
 
 import { storageGet, storageSet } from "@/storage/manager";
-import type { CtiResult } from "@/background/cti-types";
+import type {
+  CtiHistoryEntry,
+  CtiProvider,
+  CtiSummaryField,
+  IndicatorType,
+  ProviderResult,
+  Verdict,
+} from "@/background/cti-types";
 
 const HISTORY_KEY = "cti.history";
 export const CTI_HISTORY_MAX = 100;
 
 interface HistoryShape {
-  entries: CtiResult[];
+  entries: CtiHistoryEntry[];
 }
 
-function dedupKey(
-  provider: CtiResult["provider"],
-  indicatorType: CtiResult["indicatorType"],
-  indicator: string,
-): string {
-  return `${provider}:${indicatorType}:${indicator}`;
+function isProviderResult(value: unknown): value is ProviderResult {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.verdict === "string" &&
+    Array.isArray(v.summary) &&
+    typeof v.lookedUpAt === "number" &&
+    typeof v.staleAfter === "number"
+  );
 }
 
-export async function getCtiHistory(): Promise<CtiResult[]> {
+function isHistoryEntry(value: unknown): value is CtiHistoryEntry {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.indicator !== "string") return false;
+  if (typeof v.indicatorType !== "string") return false;
+  if (typeof v.firstLookupAt !== "number") return false;
+  if (typeof v.lastLookupAt !== "number") return false;
+  if (typeof v.providers !== "object" || v.providers === null) return false;
+  for (const slot of Object.values(v.providers as Record<string, unknown>)) {
+    if (slot !== undefined && !isProviderResult(slot)) return false;
+  }
+  return true;
+}
+
+export async function getCtiHistory(): Promise<CtiHistoryEntry[]> {
   const raw = await storageGet<HistoryShape>(HISTORY_KEY);
   if (!raw || !Array.isArray(raw.entries)) return [];
-  return raw.entries;
+  return raw.entries.filter(isHistoryEntry);
 }
 
-async function writeCtiHistory(entries: CtiResult[]): Promise<void> {
+async function writeCtiHistory(entries: CtiHistoryEntry[]): Promise<void> {
   await storageSet(HISTORY_KEY, { entries } satisfies HistoryShape);
 }
 
-export async function upsertCtiHistory(entry: CtiResult): Promise<void> {
+export interface UpsertSuccessArgs {
+  indicator: string;
+  indicatorType: IndicatorType;
+  providerId: CtiProvider;
+  query: string;
+  verdict: Verdict;
+  summary: CtiSummaryField[];
+  response: unknown;
+  lookedUpAt: number;
+  staleAfter: number;
+}
+
+export interface UpsertErrorArgs {
+  indicator: string;
+  indicatorType: IndicatorType;
+  providerId: CtiProvider;
+  query: string;
+  lookedUpAt: number;
+  staleAfter: number;
+  error: { kind: string; message: string };
+}
+
+function normalize(indicator: string): string {
+  return indicator.trim().toLowerCase();
+}
+
+export async function upsertProviderResult(
+  args: UpsertSuccessArgs | UpsertErrorArgs,
+): Promise<void> {
+  const indicator = normalize(args.indicator);
   const entries = await getCtiHistory();
-  const key = dedupKey(entry.provider, entry.indicatorType, entry.indicator);
-  const without = entries.filter(
-    (e) => dedupKey(e.provider, e.indicatorType, e.indicator) !== key,
-  );
-  const next = [entry, ...without];
+  const existing = entries.find((e) => e.indicator === indicator);
+  const others = entries.filter((e) => e.indicator !== indicator);
+
+  const slot: ProviderResult =
+    "error" in args
+      ? {
+          verdict: "error",
+          summary: [],
+          response: null,
+          lookedUpAt: args.lookedUpAt,
+          staleAfter: args.staleAfter,
+          error: args.error,
+        }
+      : {
+          verdict: args.verdict,
+          summary: args.summary,
+          response: args.response,
+          lookedUpAt: args.lookedUpAt,
+          staleAfter: args.staleAfter,
+        };
+
+  const updated: CtiHistoryEntry = existing
+    ? {
+        ...existing,
+        lastLookupAt: args.lookedUpAt,
+        providers: { ...existing.providers, [args.providerId]: slot },
+      }
+    : {
+        indicator,
+        indicatorType: args.indicatorType,
+        query: args.query,
+        firstLookupAt: args.lookedUpAt,
+        lastLookupAt: args.lookedUpAt,
+        providers: { [args.providerId]: slot },
+      };
+
+  const next = [updated, ...others];
   if (next.length > CTI_HISTORY_MAX) {
     next.length = CTI_HISTORY_MAX;
   }

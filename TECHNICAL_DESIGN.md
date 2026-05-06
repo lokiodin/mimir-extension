@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Companion Doc | `PRD.md` v3.5 |
-| Document Version | 2.6 |
+| Companion Doc | `PRD.md` v3.7 |
+| Document Version | 2.7 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.7** — §6 rewritten: CTI history shape changed to one entry per indicator with per-provider results nested in a `providers` map. LRU eviction now keys on `lastLookupAt`. Click flow no longer triggers refetch on stale; staleness is display-only. Old-shape entries are silently skipped on read (no migration). Service worker writes a slot on both success and failure so failed lookups are visible in history.
 - **2.6** — §5.4 updated: Stage 3 output panel is now a live-derived read-only textarea; the "Apply" button is removed. §5.1 diagram updated accordingly.
 - **2.5** — Right-click integration wired for Encoding, Defang, CTI, and Log Analysis. §4.1 widens `MimirModule.contextMenu.onInvoke` to optional (background-mode modules omit it). §4.3 rewritten to describe per-module invocation kinds: popup-mode (default — opens popup, switches module, prefills) and background-mode (Log Analysis — runs in SW, lands in history, surfaces via toolbar badge). New SW-side parallel registry: `src/modules/<id>/context-menu.ts` sibling files keep React out of the background bundle. §8 gains an optional `error?: boolean` flag on history entries so failed background analyses render distinctly. §9 storage namespaces gain `modules.contextMenu.pending` (popup-mode handoff) and `settings.lastPopupOpenedTs` (badge unread cutoff).
 - **2.4** — `TextTransformPanel` interface (§10.1) gains four optional fields populated by its first two callers: `group` and `inverse` on each transform (Encoding uses `group` for optgroups; Defang uses `inverse` so its bidirectional swap also flips to the paired transform), and controlled-input props `value`/`onValueChange` and `transformId`/`onTransformIdChange` (Encoding uses these to persist input across popup reopens). All four are optional and backwards-compatible with the v2.3 documented use case.
@@ -244,17 +245,21 @@ Service worker exposes `ctiLookup(indicator, sources[])` that fans out to config
 
 **No client-side rate limiting.** If the user hits a provider's limit, they see the provider's 429 response and deal with it. Mimir does not pre-emptively throttle.
 
-**Unified history store** (`cti.history.*`). One store, one row per lookup. Each entry holds:
+**Unified history store** (`cti.history.*`). One entry per **normalized indicator** (lowercased, trimmed). Each entry carries:
 
-- `timestamp`, `query`, `provider`, `verdict` (audit metadata)
-- `response` — the full provider response body
-- `staleAfter` — timestamp = `timestamp + ttl`
+- `indicator`, `indicatorType`, `query` (the original user input on first lookup)
+- `firstLookupAt`, `lastLookupAt`
+- `providers: Partial<Record<CtiProvider, ProviderResult>>` — slots populated per provider that has run
 
-**Cap: 100 entries**, LRU eviction (the entry with the oldest `timestamp` is dropped when a new lookup would exceed the cap). **TTL: 72h default, configurable.**
+Each `ProviderResult` holds `verdict`, `summary`, `response`, `lookedUpAt`, `staleAfter`, and an optional `error: { kind, message }` when that provider's call failed. Failed lookups still write a slot — the row surfaces the failure inline alongside successful providers.
 
-TTL determines **freshness**, not lifetime. When the user clicks an entry whose `staleAfter` is in the past, the lookup re-fires against the provider and the entry is updated in place. When the entry is fresh, the stored response renders instantly with no network call. A new lookup of an indicator already in the store updates the existing entry (same row, refreshed `timestamp`/`response`) rather than creating a duplicate.
+**Cap: 100 indicators**, LRU eviction by `lastLookupAt` (the indicator with the oldest `lastLookupAt` is dropped when a new lookup would exceed the cap). **TTL: 72h default, configurable.**
 
-The store therefore serves as both response cache and audit log — one mental model, one persistence layer, one clear action to wipe.
+TTL is **informational only**. A slot whose `staleAfter` is in the past is rendered with a "stale" hint, but clicking the row never triggers a refetch — the click handler only renders stored data. To refresh, the user re-types the indicator into the input; the parallel provider fan-out fires and `upsertProviderResult` merges results into the existing entry in place (preserving `firstLookupAt`, advancing `lastLookupAt`, refreshing only the slots that ran). This deliberately removes per-row refresh affordances and keeps the cache layer write-on-lookup-only.
+
+The store serves as both response cache and audit log — one mental model, one persistence layer, one clear action to wipe.
+
+**No migration.** The shape change from per-(provider, indicator) rows to per-indicator entries is breaking. `getCtiHistory` filters out non-conforming entries on read (silent skip) — old rows become dead weight that LRU eventually evicts as new lookups happen.
 
 **"Clear CTI history"** wipes the entire store in one operation.
 
