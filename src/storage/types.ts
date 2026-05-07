@@ -1,9 +1,10 @@
 export interface AiProviderConfig {
   id: string; // UUID assigned at creation
-  type: "ollama" | "openai" | "anthropic" | "openai-compatible";
+  type: "ollama" | "openai" | "anthropic" | "openai-compatible" | "aiyou";
   label: string; // user-chosen display name
   endpoint: string; // URL
   model?: string; // optional, e.g. "llama3", "gpt-4o"
+  authMode?: "apikey" | "bearer"; // used by "aiyou" only — chooses X-API-KEY vs Authorization: Bearer
 }
 
 export type AbusechMode = "web" | "api";

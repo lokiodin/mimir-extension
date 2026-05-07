@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 3.7 |
+| Document Version | 3.8 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **3.8** — Adds AI You as a fifth AI provider for internal-team use. User-supplied endpoint URL (no shipped default), dual auth modes (X-API-KEY or Bearer JWT), three hardcoded models. SSE streaming required by the API but buffered internally — the AiClient interface stays non-streaming for callers, so PRD §6 non-goal 8 is unchanged.
 - **3.7** — CTI history collapsed to one entry per indicator, with each provider's result nested in a `providers` map. Clicking a history row no longer triggers a refetch — it renders stored data only; staleness is informational. Re-typing the indicator is the only path to fresh data.
 - **3.6** — Defang module switches to a two-pane bidirectional UI (Fanged ↔ Defanged); the operation dropdown is removed for Defang only. Other Transform operations remain dropdown-driven.
 - **3.5** — Redaction Stage 3 drops the explicit "Apply" step; the output panel now re-derives live from the current accept/reject set and any manual additions. Copy is via the in-corner copy icon.
@@ -76,7 +77,7 @@ There is no primary persona ranking. Modules are surfaced equally; users enable 
 5. **No success-metric tracking.** This is an open-source project; counting users is not a goal.
 6. **No store-compliance shaping of the product.** Manual install is the primary distribution path. If the extension also lands in the Chrome Web Store, that's a bonus, not a constraint on what gets built.
 7. **No module signing, sandboxing, or marketplace.** Custom modules live in the user's own fork.
-8. **No streaming LLM responses in MVP.** Standard async only.
+8. **No streaming LLM responses in MVP.** Standard async only. (AI You's API requires `stream: true`, but its adapter buffers SSE chunks internally and exposes a non-streaming interface like every other adapter.)
 
 ## 7. Functional Requirements
 
@@ -135,7 +136,7 @@ Output goes to the clipboard or to whichever module the user pastes it into. **T
 | ID | Requirement |
 |---|---|
 | F-AI-1 | User configures one or more AI providers in settings |
-| F-AI-2 | Supported provider types: **Ollama / LocalAI (local)**, **OpenAI**, **Anthropic**, **OpenAI-compatible (any URL)** |
+| F-AI-2 | Supported provider types: **Ollama / LocalAI (local)**, **OpenAI**, **Anthropic**, **OpenAI-compatible (any URL)**, **AI You** (internal-team gateway, user-supplied URL) |
 | F-AI-3 | User picks active provider per AI-using module (or one global default) |
 | F-AI-4 | Per-feature system prompts, user-editable in settings |
 | F-AI-5 | If the configured provider is unreachable, the AI-using module shows a clear error and other modules continue working |
@@ -190,7 +191,7 @@ Most things prior versions of this doc treated as risks are explicitly the user'
 
 **APIs:** VirusTotal v3, AbuseIPDB v2, hunting.abuse.ch (web + API).
 
-**AI providers supported out of the box:** Ollama, LocalAI, OpenAI, Anthropic, any OpenAI-compatible endpoint.
+**AI providers supported out of the box:** Ollama, LocalAI, OpenAI, Anthropic, any OpenAI-compatible endpoint, AI You.
 
 **Browsers:** Chrome ≥ 120, Edge ≥ 120, Firefox ≥ 128.
 

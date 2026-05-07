@@ -1,6 +1,7 @@
 // AI client — adapter-based. See TECHNICAL_DESIGN.md §7.
-// Three adapters: Ollama (native), OpenAI/OpenAI-compatible (chat-completions),
-// Anthropic. Standard async only — no streaming in MVP.
+// Four adapters: Ollama (native), OpenAI/OpenAI-compatible (chat-completions),
+// Anthropic, and AI You (mandatory SSE buffered internally — see ai-adapters/aiyou.ts).
+// Standard async to callers only — no streaming surfaced to the rest of Mimir.
 
 import { withKeepalive } from "@/background/keepalive";
 import { getApiKey, getSettings } from "@/storage/manager";
@@ -12,8 +13,9 @@ import type {
   AiTestConnectionRequest,
   AiTestConnectionResponse,
 } from "@/background/ai-types";
+import { aiyouComplete, aiyouTest } from "@/background/ai-adapters/aiyou";
 
-const REQUEST_TIMEOUT_MS = 240_000;
+export const REQUEST_TIMEOUT_MS = 240_000;
 const ANTHROPIC_VERSION = "2023-06-01";
 const ANTHROPIC_MAX_TOKENS = 4096;
 
@@ -22,13 +24,14 @@ const DEFAULT_ENDPOINTS: Record<AiProviderConfig["type"], string> = {
   openai: "https://api.openai.com",
   anthropic: "https://api.anthropic.com",
   "openai-compatible": "",
+  aiyou: "",
 };
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-function effectiveEndpoint(provider: AiProviderConfig): string {
+export function effectiveEndpoint(provider: AiProviderConfig): string {
   const raw = provider.endpoint?.trim() ?? "";
   if (raw) return trimSlash(raw);
   return DEFAULT_ENDPOINTS[provider.type];
@@ -73,7 +76,7 @@ async function timedFetch(opts: FetchOpts): Promise<Response> {
   }
 }
 
-async function readErrorBody(response: Response): Promise<string> {
+export async function readErrorBody(response: Response): Promise<string> {
   try {
     const text = await response.text();
     return text.length > 200 ? `${text.slice(0, 200)}…` : text;
@@ -256,6 +259,9 @@ export async function complete(
           req.userInput,
         );
         break;
+      case "aiyou":
+        response = await aiyouComplete(provider, apiKey, system, req.userInput);
+        break;
     }
     return {
       ok: true,
@@ -367,6 +373,9 @@ export async function testConnection(
         break;
       case "anthropic":
         message = await anthropicTest(provider, apiKey);
+        break;
+      case "aiyou":
+        message = await aiyouTest(provider, apiKey);
         break;
     }
     return { ok: true, message };

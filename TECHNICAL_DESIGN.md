@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Companion Doc | `PRD.md` v3.7 |
-| Document Version | 2.7 |
+| Companion Doc | `PRD.md` v3.8 |
+| Document Version | 2.8 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.8** — §7 adds AI You adapter: dual-auth (X-API-KEY / Bearer), SSE buffered internally with `tool_execution` events filtered out, hardcoded three-model list and `tools: [163]` (date) with `executeToolsDirectly: true`. `AiProviderConfig` gains optional `authMode` field used only by AI You. Endpoint URL is user-supplied (no shipped default), same shape as `openai-compatible`.
 - **2.7** — §6 rewritten: CTI history shape changed to one entry per indicator with per-provider results nested in a `providers` map. LRU eviction now keys on `lastLookupAt`. Click flow no longer triggers refetch on stale; staleness is display-only. Old-shape entries are silently skipped on read (no migration). Service worker writes a slot on both success and failure so failed lookups are visible in history.
 - **2.6** — §5.4 updated: Stage 3 output panel is now a live-derived read-only textarea; the "Apply" button is removed. §5.1 diagram updated accordingly.
 - **2.5** — Right-click integration wired for Encoding, Defang, CTI, and Log Analysis. §4.1 widens `MimirModule.contextMenu.onInvoke` to optional (background-mode modules omit it). §4.3 rewritten to describe per-module invocation kinds: popup-mode (default — opens popup, switches module, prefills) and background-mode (Log Analysis — runs in SW, lands in history, surfaces via toolbar badge). New SW-side parallel registry: `src/modules/<id>/context-menu.ts` sibling files keep React out of the background bundle. §8 gains an optional `error?: boolean` flag on history entries so failed background analyses render distinctly. §9 storage namespaces gain `modules.contextMenu.pending` (popup-mode handoff) and `settings.lastPopupOpenedTs` (badge unread cutoff).
@@ -272,6 +273,7 @@ A single `AiClient` class with one adapter per provider type:
 | Ollama | `POST /api/generate` with `{model, prompt, stream: false}` |
 | OpenAI-compatible | `POST /v1/chat/completions` with standard message array (covers OpenAI itself, LocalAI, llama.cpp server, vLLM, LM Studio, plus any user-supplied URL) |
 | Anthropic | `POST /v1/messages` with `x-api-key` and `anthropic-version` headers |
+| AI You | `POST <endpoint>/chat/completions` with X-API-KEY or Bearer auth; messages array of typed parts; `promptSystem` top-level; mandatory SSE streaming buffered internally |
 
 The user configures one or more providers in settings. Each AI-using module can either pick a specific provider or fall back to a global default.
 
@@ -280,6 +282,8 @@ The user configures one or more providers in settings. Each AI-using module can 
 **Prompt resolution.** Each AI-using feature has a default system prompt baked into source. The user can override it in settings — overrides are stored in `chrome.storage.local` under `prompts.<feature-id>` and take precedence at call time. This is a simple two-layer lookup: user override → built-in default. There is no `AGENTS.md` involvement (see §1).
 
 **MV3 keepalive** is handled by the service worker wrapping the fetch in an alarms-based heartbeat (see §3).
+
+**AI You specifics.** Endpoint URL is user-supplied — no shipped default, same shape as `openai-compatible`. Two auth modes selectable in settings (`apikey` → `X-API-KEY: DGY_API:...` / `bearer` → `Authorization: Bearer ...`); the chosen mode is stored on the provider as `authMode`. Three hardcoded models: `aiyou-large-snc`, `aiyou-medium-snc`, `aiyou-small-snc` (no model-list fetch). Every request body has `stream: true`, `tools: [163]` (date), and `executeToolsDirectly: true` — the server runs the date tool transparently when the model decides to use it. The adapter consumes the SSE response inside `withKeepalive(...)` so the worker stays alive across the whole stream read; `tool_execution` progress events are filtered out and only `choices[0].delta.content` deltas are buffered. The buffered string is returned to callers like every other adapter, so the rest of Mimir is unaware of streaming.
 
 ## 8. Log Analysis History
 

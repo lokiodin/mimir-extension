@@ -3,6 +3,7 @@ import { useSettings, useApiKey } from "@/storage/context";
 import { removeApiKey, removePrompt } from "@/storage/manager";
 import { PROMPT_DEFAULTS } from "@/prompts/defaults";
 import type { AiProviderConfig } from "@/storage/types";
+import { AIYOU_MODELS } from "@/background/ai-adapters/aiyou";
 import { clearCtiHistory, getCtiHistory } from "@/background/cti-history";
 import { exportHistoryAsCsv } from "@/modules/cti/csv";
 import { clearAnalysisHistory } from "@/modules/analysis/history";
@@ -96,6 +97,7 @@ const MODEL_PLACEHOLDERS: Record<AiProviderConfig["type"], string> = {
   openai: "gpt-4o-mini",
   anthropic: "claude-sonnet-4-6",
   "openai-compatible": "Model name",
+  aiyou: AIYOU_MODELS[0],
 };
 
 export const SettingsComponent: React.FC = () => {
@@ -119,12 +121,22 @@ export const SettingsComponent: React.FC = () => {
 
   const addAiProvider = async () => {
     const id = crypto.randomUUID();
-    const newProvider: AiProviderConfig = {
-      id,
-      type: newProviderType,
-      label: `${newProviderType} provider`,
-      endpoint: "http://localhost:11434",
-    };
+    const newProvider: AiProviderConfig =
+      newProviderType === "aiyou"
+        ? {
+            id,
+            type: "aiyou",
+            label: "AI You provider",
+            endpoint: "",
+            model: AIYOU_MODELS[0],
+            authMode: "apikey",
+          }
+        : {
+            id,
+            type: newProviderType,
+            label: `${newProviderType} provider`,
+            endpoint: "http://localhost:11434",
+          };
     await updateSettings({
       aiProviders: [...settings.aiProviders, newProvider],
     });
@@ -219,6 +231,7 @@ export const SettingsComponent: React.FC = () => {
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
               <option value="openai-compatible">OpenAI-compatible</option>
+              <option value="aiyou">AI You</option>
             </select>
             <button
               onClick={addAiProvider}
@@ -467,9 +480,20 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
   }, [endpointDraft]);
 
   const requiresKey =
-    provider.type === "openai" || provider.type === "anthropic";
+    provider.type === "openai" ||
+    provider.type === "anthropic" ||
+    provider.type === "aiyou";
   const acceptsKey =
     requiresKey || provider.type === "openai-compatible";
+  const isAiyou = provider.type === "aiyou";
+  const aiyouAuthMode = provider.authMode ?? "apikey";
+  const keyPlaceholder = isAiyou
+    ? aiyouAuthMode === "bearer"
+      ? "eyxxxxxx.yyyyyy.zzzzzzz"
+      : "DGY_API:xxxxx.yyyyy.zzzzz"
+    : requiresKey
+      ? "API key (required)"
+      : "API key (optional for self-hosted)";
 
   const handleEndpointBlur = async (): Promise<void> => {
     if (endpointDraft === provider.endpoint) return;
@@ -549,17 +573,29 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
           />
           <select
             value={provider.type}
-            onChange={(e) =>
-              onUpdate({
-                type: e.target.value as AiProviderConfig["type"],
-              })
-            }
+            onChange={(e) => {
+              const next = e.target.value as AiProviderConfig["type"];
+              const updates: Partial<AiProviderConfig> = { type: next };
+              // Switching into AI You: ensure required fields exist so the
+              // adapter and UI don't blow up before the user fills things in.
+              if (next === "aiyou") {
+                if (!provider.authMode) updates.authMode = "apikey";
+                if (
+                  !provider.model ||
+                  !(AIYOU_MODELS as readonly string[]).includes(provider.model)
+                ) {
+                  updates.model = AIYOU_MODELS[0];
+                }
+              }
+              onUpdate(updates);
+            }}
             className="bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
           >
             <option value="ollama">Ollama</option>
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
             <option value="openai-compatible">OpenAI-compatible</option>
+            <option value="aiyou">AI You</option>
           </select>
         </div>
         <input
@@ -567,7 +603,9 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
           value={endpointDraft}
           onChange={(e) => setEndpointDraft(e.target.value)}
           onBlur={handleEndpointBlur}
-          placeholder="http://localhost:11434"
+          placeholder={
+            isAiyou ? "https://your-ai-you-host/api/v1" : "http://localhost:11434"
+          }
           className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
         />
         {endpointGranted === false && endpointHost(endpointDraft) && (
@@ -579,14 +617,59 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
             Grant access to {endpointHost(endpointDraft)}
           </button>
         )}
-        <input
-          type="text"
-          value={modelDraft}
-          onChange={(e) => setModelDraft(e.target.value)}
-          onBlur={handleModelBlur}
-          placeholder={MODEL_PLACEHOLDERS[provider.type]}
-          className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
-        />
+        {isAiyou && (
+          <div className="flex gap-3 text-xs text-gray-300 px-1">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name={`aiyou-auth-${provider.id}`}
+                value="apikey"
+                checked={aiyouAuthMode === "apikey"}
+                onChange={() => onUpdate({ authMode: "apikey" })}
+              />
+              API Key
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name={`aiyou-auth-${provider.id}`}
+                value="bearer"
+                checked={aiyouAuthMode === "bearer"}
+                onChange={() => onUpdate({ authMode: "bearer" })}
+              />
+              Bearer (JWT)
+            </label>
+          </div>
+        )}
+        {isAiyou ? (
+          <select
+            value={
+              modelDraft && (AIYOU_MODELS as readonly string[]).includes(modelDraft)
+                ? modelDraft
+                : AIYOU_MODELS[0]
+            }
+            onChange={(e) => {
+              setModelDraft(e.target.value);
+              void onUpdate({ model: e.target.value });
+            }}
+            className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+          >
+            {AIYOU_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={modelDraft}
+            onChange={(e) => setModelDraft(e.target.value)}
+            onBlur={handleModelBlur}
+            placeholder={MODEL_PLACEHOLDERS[provider.type]}
+            className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
+          />
+        )}
         {acceptsKey && (
           <div className="flex gap-2">
             <div className="relative flex-1 min-w-0">
@@ -594,11 +677,7 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
                 type={showKey ? "text" : "password"}
                 value={keyDraft}
                 onChange={(e) => setKeyDraft(e.target.value)}
-                placeholder={
-                  requiresKey
-                    ? "API key (required)"
-                    : "API key (optional for self-hosted)"
-                }
+                placeholder={keyPlaceholder}
                 disabled={keyLoading}
                 className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 pr-12 text-sm"
               />
