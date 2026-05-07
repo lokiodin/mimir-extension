@@ -20,6 +20,7 @@ import {
 } from "@/background/ai-adapters/shared/http";
 import aiyouAdapter from "@/background/ai-adapters/aiyou";
 import ollamaAdapter from "@/background/ai-adapters/ollama";
+import openaiCompatibleAdapter from "@/background/ai-adapters/openai-compatible";
 
 // Re-export shared helpers for any in-tree consumers that still import them
 // from here. Will be removed once all adapters are migrated.
@@ -175,7 +176,6 @@ export async function complete(
         break;
       }
       case "openai":
-      case "openai-compatible":
         response = await openaiComplete(
           provider,
           apiKey,
@@ -183,6 +183,17 @@ export async function complete(
           req.userInput,
         );
         break;
+      case "openai-compatible": {
+        const result = await openaiCompatibleAdapter.complete({
+          provider,
+          apiKey,
+          system,
+          userInput: req.userInput,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        response = result.text;
+        break;
+      }
       case "anthropic":
         response = await anthropicComplete(
           provider,
@@ -296,9 +307,17 @@ export async function testConnection(
         break;
       }
       case "openai":
-      case "openai-compatible":
         message = await openaiTest(provider, apiKey);
         break;
+      case "openai-compatible": {
+        const result = await openaiCompatibleAdapter.testConnection({
+          provider,
+          apiKey,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        message = result.message;
+        break;
+      }
       case "anthropic":
         message = await anthropicTest(provider, apiKey);
         break;
