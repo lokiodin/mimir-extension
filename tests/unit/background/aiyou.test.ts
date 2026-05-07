@@ -63,14 +63,28 @@ function recordFetch(response: Response): { calls: FetchCall[] } {
   return { calls };
 }
 
-let aiyouComplete: typeof import("../../../src/background/ai-adapters/aiyou").aiyouComplete;
+let adapter: typeof import("../../../src/background/ai-adapters/aiyou").default;
 let AIYOU_MODELS: typeof import("../../../src/background/ai-adapters/aiyou").AIYOU_MODELS;
+
+// Thin shim to keep the existing test bodies as positional calls. The
+// adapter returns a result object; tests assert on thrown errors / returned
+// strings, so we unwrap here.
+async function aiyouComplete(
+  provider: AiProviderConfig,
+  apiKey: string | undefined,
+  system: string,
+  userInput: string,
+): Promise<string> {
+  const result = await adapter.complete({ provider, apiKey, system, userInput });
+  if (!result.ok) throw new Error(result.error.message);
+  return result.text;
+}
 
 beforeEach(async () => {
   installChromeStub();
   vi.resetModules();
   const mod = await import("../../../src/background/ai-adapters/aiyou");
-  aiyouComplete = mod.aiyouComplete;
+  adapter = mod.default;
   AIYOU_MODELS = mod.AIYOU_MODELS;
 });
 

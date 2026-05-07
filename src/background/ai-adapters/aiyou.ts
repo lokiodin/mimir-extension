@@ -5,23 +5,33 @@
 //      The user picks one in settings; we send only the chosen header.
 //   2. Mandatory SSE streaming on every request — the gateway has no non-streaming
 //      mode. We buffer the stream internally and return a plain string, so the
-//      AiClient interface stays non-streaming for the rest of Mimir.
+//      AiAdapter contract stays non-streaming for the rest of Mimir.
 //   3. Server-side tools auto-execution: every request carries `tools: [163]`
-//      (the date tool) and `executeToolsDirectly: true`. The server runs the
-//      tool transparently when the model decides to use it; tool-execution
+//      (the date tool) and `executeToolsDirectly: true`. Tool-execution
 //      progress events that arrive on the stream are filtered out — only
 //      content deltas are buffered.
 //
 // Endpoint URL is user-supplied (no shipped default), same shape as
-// `openai-compatible`. The full keepalive boundary covers the entire stream
+// `openai-compatible`. The withKeepalive boundary covers the entire stream
 // consumption — not just the response-headers phase.
 
 import { withKeepalive } from "@/background/keepalive";
+import type {
+  AiAdapter,
+  AiAdapterCompleteResult,
+  AiAdapterError,
+  AiAdapterErrorKind,
+  AiAdapterRequest,
+  AiAdapterTestRequest,
+  AiAdapterTestResult,
+} from "./types";
+import { effectiveEndpoint } from "./shared/endpoint";
+import { readErrorBody, REQUEST_TIMEOUT_MS } from "./shared/http";
 import {
-  REQUEST_TIMEOUT_MS,
-  effectiveEndpoint,
-  readErrorBody,
-} from "@/background/ai-client";
+  mapFetchExceptionToKind,
+  mapHttpStatusToKind,
+  shapeFetchExceptionMessage,
+} from "./shared/errors";
 import type { AiProviderConfig } from "@/storage/types";
 
 export const AIYOU_MODELS = [
@@ -167,9 +177,6 @@ async function aiyouFetch(
   apiKey: string,
   body: AiyouRequestBody,
 ): Promise<string> {
-  if (!provider.endpoint || provider.endpoint.trim() === "") {
-    throw new Error(`Endpoint URL required for ${provider.label}`);
-  }
   const url = `${effectiveEndpoint(provider)}/chat/completions`;
   return withKeepalive(async () => {
     const controller = new AbortController();
@@ -186,9 +193,7 @@ async function aiyouFetch(
       });
       if (!response.ok) {
         const errBody = await readErrorBody(response);
-        throw new Error(
-          `AI You: ${response.status} ${errBody}`.trim(),
-        );
+        throw new Error(`AI You: ${response.status} ${errBody}`.trim());
       }
       return await consumeSseStream(response);
     } finally {
@@ -197,37 +202,95 @@ async function aiyouFetch(
   });
 }
 
-export async function aiyouComplete(
-  provider: AiProviderConfig,
-  apiKey: string | undefined,
-  system: string,
-  userInput: string,
-): Promise<string> {
-  if (!apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
-  }
-  if (!isAiyouModel(provider.model)) {
-    throw new Error(
-      `Unknown AI You model "${provider.model ?? ""}" for ${provider.label}`,
-    );
-  }
-  return aiyouFetch(provider, apiKey, buildBody(provider.model, system, userInput));
+interface ValidatedAiyou {
+  model: AiyouModel;
+  apiKey: string;
 }
 
-// Test connection: same code path as production — minimal chat completion,
-// SSE buffered, tools enabled. A 200 with non-empty buffered content = ok.
-export async function aiyouTest(
+function validateAiyou(
   provider: AiProviderConfig,
   apiKey: string | undefined,
-): Promise<string> {
+): ValidatedAiyou | { error: AiAdapterError } {
   if (!apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
+    return {
+      error: {
+        kind: "auth_failed",
+        message: `API key missing for ${provider.label}`,
+      },
+    };
   }
   if (!isAiyouModel(provider.model)) {
-    throw new Error(
-      `Unknown AI You model "${provider.model ?? ""}" for ${provider.label}`,
-    );
+    return {
+      error: {
+        kind: "request_failed",
+        message: `Unknown AI You model "${provider.model ?? ""}" for ${provider.label}`,
+      },
+    };
   }
-  await aiyouFetch(provider, apiKey, buildBody(provider.model, "", "ping"));
-  return `Reached AI You. Model ${provider.model} responded.`;
+  if (!provider.endpoint || provider.endpoint.trim() === "") {
+    return {
+      error: {
+        kind: "request_failed",
+        message: `Endpoint URL required for ${provider.label}`,
+      },
+    };
+  }
+  return { model: provider.model, apiKey };
 }
+
+function classifyAiyouError(err: unknown): AiAdapterError {
+  if (err instanceof Error && err.message.startsWith("AI You: ")) {
+    if (err.message === "AI You: empty response") {
+      return { kind: "empty_response", message: err.message };
+    }
+    if (err.message === "AI You: response has no body") {
+      return { kind: "request_failed", message: err.message };
+    }
+    const match = err.message.match(/^AI You: (\d{3})/);
+    if (match) {
+      const status = parseInt(match[1], 10);
+      const kind: AiAdapterErrorKind = mapHttpStatusToKind(status);
+      return { kind, message: err.message };
+    }
+    return { kind: "request_failed", message: err.message };
+  }
+  return {
+    kind: mapFetchExceptionToKind(err),
+    message: shapeFetchExceptionMessage(err),
+  };
+}
+
+const aiyouAdapter: AiAdapter = {
+  id: "aiyou",
+  async complete(req: AiAdapterRequest): Promise<AiAdapterCompleteResult> {
+    const v = validateAiyou(req.provider, req.apiKey);
+    if ("error" in v) return { ok: false, error: v.error };
+    try {
+      const text = await aiyouFetch(
+        req.provider,
+        v.apiKey,
+        buildBody(v.model, req.system, req.userInput),
+      );
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: classifyAiyouError(err) };
+    }
+  },
+  async testConnection(
+    req: AiAdapterTestRequest,
+  ): Promise<AiAdapterTestResult> {
+    const v = validateAiyou(req.provider, req.apiKey);
+    if ("error" in v) return { ok: false, error: v.error };
+    try {
+      await aiyouFetch(req.provider, v.apiKey, buildBody(v.model, "", "ping"));
+      return {
+        ok: true,
+        message: `Reached AI You. Model ${v.model} responded.`,
+      };
+    } catch (err) {
+      return { ok: false, error: classifyAiyouError(err) };
+    }
+  },
+};
+
+export default aiyouAdapter;

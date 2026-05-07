@@ -1,11 +1,10 @@
-// AI client — adapter-based. See TECHNICAL_DESIGN.md §7.
-// Four adapters: Ollama (native), OpenAI/OpenAI-compatible (chat-completions),
-// Anthropic, and AI You (mandatory SSE buffered internally — see ai-adapters/aiyou.ts).
-// Standard async to callers only — no streaming surfaced to the rest of Mimir.
+// AI client — adapter-based dispatcher. See TECHNICAL_DESIGN.md §7.
+// Resolves the active provider, the API key, and the system prompt, then
+// dispatches to the per-provider adapter under src/background/ai-adapters/.
+// Standard async to callers — adapters that stream buffer internally.
 
-import { withKeepalive } from "@/background/keepalive";
-import { getApiKey, getSettings } from "@/storage/manager";
 import { resolvePrompt } from "@/prompts";
+import { getApiKey, getSettings } from "@/storage/manager";
 import type { AiProviderConfig } from "@/storage/types";
 import type {
   AiCompleteRequest,
@@ -13,29 +12,20 @@ import type {
   AiTestConnectionRequest,
   AiTestConnectionResponse,
 } from "@/background/ai-types";
-import { aiyouComplete, aiyouTest } from "@/background/ai-adapters/aiyou";
+import { effectiveEndpoint } from "@/background/ai-adapters/shared/endpoint";
+import {
+  REQUEST_TIMEOUT_MS,
+  readErrorBody,
+  timedFetch,
+} from "@/background/ai-adapters/shared/http";
+import aiyouAdapter from "@/background/ai-adapters/aiyou";
 
-export const REQUEST_TIMEOUT_MS = 240_000;
+// Re-export shared helpers for any in-tree consumers that still import them
+// from here. Will be removed once all adapters are migrated.
+export { effectiveEndpoint, REQUEST_TIMEOUT_MS, readErrorBody };
+
 const ANTHROPIC_VERSION = "2023-06-01";
 const ANTHROPIC_MAX_TOKENS = 4096;
-
-const DEFAULT_ENDPOINTS: Record<AiProviderConfig["type"], string> = {
-  ollama: "http://localhost:11434",
-  openai: "https://api.openai.com",
-  anthropic: "https://api.anthropic.com",
-  "openai-compatible": "",
-  aiyou: "",
-};
-
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/, "");
-}
-
-export function effectiveEndpoint(provider: AiProviderConfig): string {
-  const raw = provider.endpoint?.trim() ?? "";
-  if (raw) return trimSlash(raw);
-  return DEFAULT_ENDPOINTS[provider.type];
-}
 
 function describeProvider(provider: AiProviderConfig): string {
   const parts: string[] = [provider.type];
@@ -52,39 +42,6 @@ async function getProvider(
   return settings.aiProviders.find((p) => p.id === providerId);
 }
 
-interface FetchOpts {
-  url: string;
-  method: "GET" | "POST";
-  headers: Record<string, string>;
-  body?: string;
-}
-
-async function timedFetch(opts: FetchOpts): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    return await withKeepalive(() =>
-      fetch(opts.url, {
-        method: opts.method,
-        headers: opts.headers,
-        body: opts.body,
-        signal: controller.signal,
-      }),
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export async function readErrorBody(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-    return text.length > 200 ? `${text.slice(0, 200)}…` : text;
-  } catch {
-    return "";
-  }
-}
-
 function shapeError(err: unknown): string {
   if (err instanceof DOMException && err.name === "AbortError") {
     return "Request timed out after 4 minutes";
@@ -95,7 +52,7 @@ function shapeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// ---------- complete adapters ----------
+// ---------- complete adapters (still inline; migrating one at a time) ----------
 
 async function ollamaComplete(
   provider: AiProviderConfig,
@@ -259,9 +216,17 @@ export async function complete(
           req.userInput,
         );
         break;
-      case "aiyou":
-        response = await aiyouComplete(provider, apiKey, system, req.userInput);
+      case "aiyou": {
+        const result = await aiyouAdapter.complete({
+          provider,
+          apiKey,
+          system,
+          userInput: req.userInput,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        response = result.text;
         break;
+      }
     }
     return {
       ok: true,
@@ -374,9 +339,12 @@ export async function testConnection(
       case "anthropic":
         message = await anthropicTest(provider, apiKey);
         break;
-      case "aiyou":
-        message = await aiyouTest(provider, apiKey);
+      case "aiyou": {
+        const result = await aiyouAdapter.testConnection({ provider, apiKey });
+        if (!result.ok) throw new Error(result.error.message);
+        message = result.message;
         break;
+      }
     }
     return { ok: true, message };
   } catch (err) {
