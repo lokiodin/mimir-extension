@@ -19,6 +19,7 @@ import {
   timedFetch,
 } from "@/background/ai-adapters/shared/http";
 import aiyouAdapter from "@/background/ai-adapters/aiyou";
+import ollamaAdapter from "@/background/ai-adapters/ollama";
 
 // Re-export shared helpers for any in-tree consumers that still import them
 // from here. Will be removed once all adapters are migrated.
@@ -53,40 +54,6 @@ function shapeError(err: unknown): string {
 }
 
 // ---------- complete adapters (still inline; migrating one at a time) ----------
-
-async function ollamaComplete(
-  provider: AiProviderConfig,
-  system: string,
-  userInput: string,
-): Promise<string> {
-  if (!provider.model || provider.model.trim() === "") {
-    throw new Error(`Model name not set for ${provider.label}`);
-  }
-  const url = `${effectiveEndpoint(provider)}/api/generate`;
-  const response = await timedFetch({
-    url,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: provider.model,
-      system,
-      prompt: userInput,
-      stream: false,
-    }),
-  });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`Ollama: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { response?: string }
-    | null;
-  const text = data?.response;
-  if (typeof text !== "string") {
-    throw new Error("Unexpected response shape from Ollama");
-  }
-  return text;
-}
 
 async function openaiComplete(
   provider: AiProviderConfig,
@@ -196,9 +163,17 @@ export async function complete(
 
     let response: string;
     switch (provider.type) {
-      case "ollama":
-        response = await ollamaComplete(provider, system, req.userInput);
+      case "ollama": {
+        const result = await ollamaAdapter.complete({
+          provider,
+          apiKey,
+          system,
+          userInput: req.userInput,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        response = result.text;
         break;
+      }
       case "openai":
       case "openai-compatible":
         response = await openaiComplete(
@@ -240,21 +215,6 @@ export async function complete(
 }
 
 // ---------- testConnection adapters ----------
-
-async function ollamaTest(provider: AiProviderConfig): Promise<string> {
-  const url = `${effectiveEndpoint(provider)}/api/tags`;
-  const response = await timedFetch({ url, method: "GET", headers: {} });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`Ollama: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { models?: unknown[] }
-    | null;
-  const models = data?.models;
-  const count = Array.isArray(models) ? models.length : 0;
-  return `Reached Ollama. ${count} model${count === 1 ? "" : "s"} available.`;
-}
 
 async function openaiTest(
   provider: AiProviderConfig,
@@ -329,9 +289,12 @@ export async function testConnection(
 
     let message: string;
     switch (provider.type) {
-      case "ollama":
-        message = await ollamaTest(provider);
+      case "ollama": {
+        const result = await ollamaAdapter.testConnection({ provider, apiKey });
+        if (!result.ok) throw new Error(result.error.message);
+        message = result.message;
         break;
+      }
       case "openai":
       case "openai-compatible":
         message = await openaiTest(provider, apiKey);
