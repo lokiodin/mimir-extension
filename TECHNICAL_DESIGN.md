@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.8 |
-| Document Version | 2.8 |
+| Document Version | 2.9 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.9** — §7 standardized: a thin dispatcher (`src/background/ai-client.ts`) plus one `AiAdapter` implementation per provider in `src/background/ai-adapters/<provider>.ts`. The contract lives in `src/background/ai-adapters/types.ts`; the registry index is at `src/background/ai-adapters/index.ts`. Adding a new provider = create one file, add one entry to the registry. No user-visible behavior change.
 - **2.8** — §7 adds AI You adapter: dual-auth (X-API-KEY / Bearer), SSE buffered internally with `tool_execution` events filtered out, hardcoded three-model list and `tools: [163]` (date) with `executeToolsDirectly: true`. `AiProviderConfig` gains optional `authMode` field used only by AI You. Endpoint URL is user-supplied (no shipped default), same shape as `openai-compatible`.
 - **2.7** — §6 rewritten: CTI history shape changed to one entry per indicator with per-provider results nested in a `providers` map. LRU eviction now keys on `lastLookupAt`. Click flow no longer triggers refetch on stale; staleness is display-only. Old-shape entries are silently skipped on read (no migration). Service worker writes a slot on both success and failure so failed lookups are visible in history.
 - **2.6** — §5.4 updated: Stage 3 output panel is now a live-derived read-only textarea; the "Apply" button is removed. §5.1 diagram updated accordingly.
@@ -266,7 +267,7 @@ The store serves as both response cache and audit log — one mental model, one 
 
 ## 7. AI Integration
 
-A single `AiClient` class with one adapter per provider type:
+A thin dispatcher (`src/background/ai-client.ts`) plus one `AiAdapter` implementation per provider in `src/background/ai-adapters/<provider>.ts`. Each adapter implements the `AiAdapter` interface defined in `src/background/ai-adapters/types.ts`; the registry that the dispatcher consults lives at `src/background/ai-adapters/index.ts`. Adding a new provider means creating one adapter file and registering it — `ai-client.ts` itself does not change.
 
 | Adapter | Endpoint shape |
 |---|---|

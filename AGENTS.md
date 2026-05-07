@@ -200,6 +200,7 @@ These come up often enough to call out:
 - **Adding rate-limiting to outbound CTI calls.** No. The user sees the provider's 429 and deals with it. See `TECHNICAL_DESIGN.md` §6.
 - **Encrypting stored API keys.** No. Documented decision.
 - **Creating a third UI surface (popup, window, **new tab**).** No. Two surfaces, full parity. See PRD §9.
+- **Adding a new AI provider by editing `ai-client.ts` directly.** No. New providers go in `src/background/ai-adapters/<provider>.ts`, implement `AiAdapter` from `types.ts`, and register in `index.ts`. `ai-client.ts` is a dispatcher; it stays free of provider-specific logic.
 
 ---
 

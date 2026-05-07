@@ -12,11 +12,7 @@ import type {
   AiTestConnectionRequest,
   AiTestConnectionResponse,
 } from "@/background/ai-types";
-import aiyouAdapter from "@/background/ai-adapters/aiyou";
-import ollamaAdapter from "@/background/ai-adapters/ollama";
-import openaiCompatibleAdapter from "@/background/ai-adapters/openai-compatible";
-import openaiAdapter from "@/background/ai-adapters/openai";
-import anthropicAdapter from "@/background/ai-adapters/anthropic";
+import { adapters } from "@/background/ai-adapters";
 
 function describeProvider(provider: AiProviderConfig): string {
   const parts: string[] = [provider.type];
@@ -43,8 +39,6 @@ function shapeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// ---------- complete adapters (still inline; migrating one at a time) ----------
-
 export async function complete(
   req: AiCompleteRequest,
 ): Promise<AiCompleteResponse> {
@@ -58,67 +52,18 @@ export async function complete(
     const apiKey =
       apiKeyRaw && apiKeyRaw.trim() !== "" ? apiKeyRaw : undefined;
 
-    let response: string;
-    switch (provider.type) {
-      case "ollama": {
-        const result = await ollamaAdapter.complete({
-          provider,
-          apiKey,
-          system,
-          userInput: req.userInput,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        response = result.text;
-        break;
-      }
-      case "openai": {
-        const result = await openaiAdapter.complete({
-          provider,
-          apiKey,
-          system,
-          userInput: req.userInput,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        response = result.text;
-        break;
-      }
-      case "openai-compatible": {
-        const result = await openaiCompatibleAdapter.complete({
-          provider,
-          apiKey,
-          system,
-          userInput: req.userInput,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        response = result.text;
-        break;
-      }
-      case "anthropic": {
-        const result = await anthropicAdapter.complete({
-          provider,
-          apiKey,
-          system,
-          userInput: req.userInput,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        response = result.text;
-        break;
-      }
-      case "aiyou": {
-        const result = await aiyouAdapter.complete({
-          provider,
-          apiKey,
-          system,
-          userInput: req.userInput,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        response = result.text;
-        break;
-      }
+    const result = await adapters[provider.type].complete({
+      provider,
+      apiKey,
+      system,
+      userInput: req.userInput,
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.error.message };
     }
     return {
       ok: true,
-      response,
+      response: result.text,
       providerLabel: describeProvider(provider),
       providerType: provider.type,
     };
@@ -126,8 +71,6 @@ export async function complete(
     return { ok: false, error: shapeError(err) };
   }
 }
-
-// ---------- testConnection adapters ----------
 
 export async function testConnection(
   req: AiTestConnectionRequest,
@@ -141,46 +84,14 @@ export async function testConnection(
     const apiKey =
       apiKeyRaw && apiKeyRaw.trim() !== "" ? apiKeyRaw : undefined;
 
-    let message: string;
-    switch (provider.type) {
-      case "ollama": {
-        const result = await ollamaAdapter.testConnection({ provider, apiKey });
-        if (!result.ok) throw new Error(result.error.message);
-        message = result.message;
-        break;
-      }
-      case "openai": {
-        const result = await openaiAdapter.testConnection({ provider, apiKey });
-        if (!result.ok) throw new Error(result.error.message);
-        message = result.message;
-        break;
-      }
-      case "openai-compatible": {
-        const result = await openaiCompatibleAdapter.testConnection({
-          provider,
-          apiKey,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        message = result.message;
-        break;
-      }
-      case "anthropic": {
-        const result = await anthropicAdapter.testConnection({
-          provider,
-          apiKey,
-        });
-        if (!result.ok) throw new Error(result.error.message);
-        message = result.message;
-        break;
-      }
-      case "aiyou": {
-        const result = await aiyouAdapter.testConnection({ provider, apiKey });
-        if (!result.ok) throw new Error(result.error.message);
-        message = result.message;
-        break;
-      }
+    const result = await adapters[provider.type].testConnection({
+      provider,
+      apiKey,
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.error.message };
     }
-    return { ok: true, message };
+    return { ok: true, message: result.message };
   } catch (err) {
     return { ok: false, error: shapeError(err) };
   }
