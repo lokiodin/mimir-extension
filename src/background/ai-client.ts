@@ -12,23 +12,11 @@ import type {
   AiTestConnectionRequest,
   AiTestConnectionResponse,
 } from "@/background/ai-types";
-import { effectiveEndpoint } from "@/background/ai-adapters/shared/endpoint";
-import {
-  REQUEST_TIMEOUT_MS,
-  readErrorBody,
-  timedFetch,
-} from "@/background/ai-adapters/shared/http";
 import aiyouAdapter from "@/background/ai-adapters/aiyou";
 import ollamaAdapter from "@/background/ai-adapters/ollama";
 import openaiCompatibleAdapter from "@/background/ai-adapters/openai-compatible";
 import openaiAdapter from "@/background/ai-adapters/openai";
-
-// Re-export shared helpers for any in-tree consumers that still import them
-// from here. Will be removed once all adapters are migrated.
-export { effectiveEndpoint, REQUEST_TIMEOUT_MS, readErrorBody };
-
-const ANTHROPIC_VERSION = "2023-06-01";
-const ANTHROPIC_MAX_TOKENS = 4096;
+import anthropicAdapter from "@/background/ai-adapters/anthropic";
 
 function describeProvider(provider: AiProviderConfig): string {
   const parts: string[] = [provider.type];
@@ -56,49 +44,6 @@ function shapeError(err: unknown): string {
 }
 
 // ---------- complete adapters (still inline; migrating one at a time) ----------
-
-async function anthropicComplete(
-  provider: AiProviderConfig,
-  apiKey: string | undefined,
-  system: string,
-  userInput: string,
-): Promise<string> {
-  if (!provider.model || provider.model.trim() === "") {
-    throw new Error(`Model name not set for ${provider.label}`);
-  }
-  if (!apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
-  }
-  const url = `${effectiveEndpoint(provider)}/v1/messages`;
-  const response = await timedFetch({
-    url,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: provider.model,
-      max_tokens: ANTHROPIC_MAX_TOKENS,
-      system,
-      messages: [{ role: "user", content: userInput }],
-    }),
-  });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`Anthropic: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { content?: Array<{ type?: string; text?: string }> }
-    | null;
-  const block = data?.content?.find((b) => b.type === "text");
-  if (!block || typeof block.text !== "string") {
-    throw new Error("Unexpected response shape from Anthropic");
-  }
-  return block.text;
-}
 
 export async function complete(
   req: AiCompleteRequest,
@@ -148,14 +93,17 @@ export async function complete(
         response = result.text;
         break;
       }
-      case "anthropic":
-        response = await anthropicComplete(
+      case "anthropic": {
+        const result = await anthropicAdapter.complete({
           provider,
           apiKey,
           system,
-          req.userInput,
-        );
+          userInput: req.userInput,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        response = result.text;
         break;
+      }
       case "aiyou": {
         const result = await aiyouAdapter.complete({
           provider,
@@ -180,35 +128,6 @@ export async function complete(
 }
 
 // ---------- testConnection adapters ----------
-
-async function anthropicTest(
-  provider: AiProviderConfig,
-  apiKey: string | undefined,
-): Promise<string> {
-  if (!apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
-  }
-  const url = `${effectiveEndpoint(provider)}/v1/models`;
-  const response = await timedFetch({
-    url,
-    method: "GET",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-  });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`Anthropic: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { data?: unknown[] }
-    | null;
-  const models = data?.data;
-  const count = Array.isArray(models) ? models.length : 0;
-  return `Reached Anthropic. ${count} model${count === 1 ? "" : "s"} available.`;
-}
 
 export async function testConnection(
   req: AiTestConnectionRequest,
@@ -245,9 +164,15 @@ export async function testConnection(
         message = result.message;
         break;
       }
-      case "anthropic":
-        message = await anthropicTest(provider, apiKey);
+      case "anthropic": {
+        const result = await anthropicAdapter.testConnection({
+          provider,
+          apiKey,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        message = result.message;
         break;
+      }
       case "aiyou": {
         const result = await aiyouAdapter.testConnection({ provider, apiKey });
         if (!result.ok) throw new Error(result.error.message);
