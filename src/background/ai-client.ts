@@ -21,6 +21,7 @@ import {
 import aiyouAdapter from "@/background/ai-adapters/aiyou";
 import ollamaAdapter from "@/background/ai-adapters/ollama";
 import openaiCompatibleAdapter from "@/background/ai-adapters/openai-compatible";
+import openaiAdapter from "@/background/ai-adapters/openai";
 
 // Re-export shared helpers for any in-tree consumers that still import them
 // from here. Will be removed once all adapters are migrated.
@@ -55,56 +56,6 @@ function shapeError(err: unknown): string {
 }
 
 // ---------- complete adapters (still inline; migrating one at a time) ----------
-
-async function openaiComplete(
-  provider: AiProviderConfig,
-  apiKey: string | undefined,
-  system: string,
-  userInput: string,
-): Promise<string> {
-  if (!provider.model || provider.model.trim() === "") {
-    throw new Error(`Model name not set for ${provider.label}`);
-  }
-  if (provider.type === "openai" && !apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
-  }
-  if (
-    provider.type === "openai-compatible" &&
-    (!provider.endpoint || provider.endpoint.trim() === "")
-  ) {
-    throw new Error(`Endpoint URL required for ${provider.label}`);
-  }
-  const url = `${effectiveEndpoint(provider)}/v1/chat/completions`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-  const response = await timedFetch({
-    url,
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: userInput },
-      ],
-      stream: false,
-    }),
-  });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`${provider.type}: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { choices?: Array<{ message?: { content?: string } }> }
-    | null;
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") {
-    throw new Error(`Unexpected response shape from ${provider.type}`);
-  }
-  return text;
-}
 
 async function anthropicComplete(
   provider: AiProviderConfig,
@@ -175,14 +126,17 @@ export async function complete(
         response = result.text;
         break;
       }
-      case "openai":
-        response = await openaiComplete(
+      case "openai": {
+        const result = await openaiAdapter.complete({
           provider,
           apiKey,
           system,
-          req.userInput,
-        );
+          userInput: req.userInput,
+        });
+        if (!result.ok) throw new Error(result.error.message);
+        response = result.text;
         break;
+      }
       case "openai-compatible": {
         const result = await openaiCompatibleAdapter.complete({
           provider,
@@ -226,36 +180,6 @@ export async function complete(
 }
 
 // ---------- testConnection adapters ----------
-
-async function openaiTest(
-  provider: AiProviderConfig,
-  apiKey: string | undefined,
-): Promise<string> {
-  if (provider.type === "openai" && !apiKey) {
-    throw new Error(`API key missing for ${provider.label}`);
-  }
-  if (
-    provider.type === "openai-compatible" &&
-    (!provider.endpoint || provider.endpoint.trim() === "")
-  ) {
-    throw new Error(`Endpoint URL required for ${provider.label}`);
-  }
-  const url = `${effectiveEndpoint(provider)}/v1/models`;
-  const headers: Record<string, string> = {};
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-  const response = await timedFetch({ url, method: "GET", headers });
-  if (!response.ok) {
-    const body = await readErrorBody(response);
-    throw new Error(`${provider.type}: ${response.status} ${body}`.trim());
-  }
-  const data = (await response.json().catch(() => null)) as
-    | { data?: unknown[] }
-    | null;
-  const models = data?.data;
-  const count = Array.isArray(models) ? models.length : 0;
-  const label = provider.type === "openai" ? "OpenAI" : "endpoint";
-  return `Reached ${label}. ${count} model${count === 1 ? "" : "s"} available.`;
-}
 
 async function anthropicTest(
   provider: AiProviderConfig,
@@ -306,9 +230,12 @@ export async function testConnection(
         message = result.message;
         break;
       }
-      case "openai":
-        message = await openaiTest(provider, apiKey);
+      case "openai": {
+        const result = await openaiAdapter.testConnection({ provider, apiKey });
+        if (!result.ok) throw new Error(result.error.message);
+        message = result.message;
         break;
+      }
       case "openai-compatible": {
         const result = await openaiCompatibleAdapter.testConnection({
           provider,
