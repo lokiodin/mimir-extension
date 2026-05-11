@@ -4,7 +4,10 @@ import { MarkdownView } from "@/components/MarkdownView";
 import { CopyIconButton } from "@/components/CopyIconButton";
 import { useSettings } from "@/storage/context";
 import { useMimirStore } from "@/store";
-import { pushAnalysisHistory } from "@/modules/analysis/history";
+import {
+  getAnalysisHistory,
+  pushAnalysisHistory,
+} from "@/modules/analysis/history";
 import { AnalysisHistoryPane } from "@/modules/analysis/history-pane";
 import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
 import type {
@@ -42,6 +45,10 @@ interface CurrentView {
 export const AnalysisComponent: React.FC = () => {
   const [settings] = useSettings();
   const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
+  const pendingAnalysisOpen = useMimirStore((s) => s.pendingAnalysisOpen);
+  const setPendingAnalysisOpen = useMimirStore(
+    (s) => s.setPendingAnalysisOpen,
+  );
 
   const [input, setInput] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("");
@@ -117,6 +124,21 @@ export const AnalysisComponent: React.FC = () => {
       error: entry.error,
     });
   };
+
+  // Consume the pendingAnalysisOpen slot written by the dispatcher when a
+  // background-completion marker is drained. Look up the entry in history
+  // and apply it; clear the slot regardless so a missing/evicted entry id
+  // does not pin the module on a routing intent that can never resolve.
+  useEffect(() => {
+    if (!pendingAnalysisOpen) return;
+    const { entryId } = pendingAnalysisOpen;
+    void (async () => {
+      const history = await getAnalysisHistory();
+      const entry = history.find((e) => e.id === entryId);
+      if (entry) handleHistorySelect(entry);
+      setPendingAnalysisOpen(null);
+    })();
+  }, [pendingAnalysisOpen, setPendingAnalysisOpen]);
 
   const noProviders = useMemo(
     () => !!settings && settings.aiProviders.length === 0,

@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 3.8 |
+| Document Version | 3.9 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **3.9** — Log Analysis: when a background-mode (right-click) analysis completes and no Mimir surface is open, the popup auto-opens and routes directly to the completed analysis. Best-effort — `action.openPopup()` may be refused by the browser, in which case the badge and history continue to surface the result and the next manual popup open routes to the analysis. F-LOG-7.
 - **3.8** — Adds AI You as a fifth AI provider for internal-team use. User-supplied endpoint URL (no shipped default), dual auth modes (X-API-KEY or Bearer JWT), three hardcoded models. SSE streaming required by the API but buffered internally — the AiClient interface stays non-streaming for callers, so PRD §6 non-goal 8 is unchanged.
 - **3.7** — CTI history collapsed to one entry per indicator, with each provider's result nested in a `providers` map. Clicking a history row no longer triggers a refetch — it renders stored data only; staleness is informational. Re-typing the indicator is the only path to fresh data.
 - **3.6** — Defang module switches to a two-pane bidirectional UI (Fanged ↔ Defanged); the operation dropdown is removed for Defang only. Other Transform operations remain dropdown-driven.
@@ -120,6 +121,7 @@ Each context-menu action is **individually toggleable** by the user in settings 
 | F-LOG-4 | Available via popup paste **and** via right-click on selected page text |
 | F-LOG-5 | **Local history of the last 10 analyses**, each storing the input, the AI response, timestamp, and provider used. Oldest is evicted when a new analysis would exceed the cap. |
 | F-LOG-6 | "Clear log analysis history" action wipes the store in one operation |
+| F-LOG-7 | When a background-mode (right-click) analysis completes and no Mimir surface (popup or standalone window) is currently open, the popup auto-opens and routes directly to the completed analysis. Best-effort: browsers may refuse `action.openPopup()` (e.g. expired user gesture); on refusal the badge and history are still updated, and the next manual popup open routes to the analysis. A 2-minute marker TTL prevents stale routing on later popup opens. |
 
 ### 7.5 Redaction Module (Opt-In)
 

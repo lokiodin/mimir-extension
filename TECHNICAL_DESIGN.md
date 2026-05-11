@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Companion Doc | `PRD.md` v3.8 |
-| Document Version | 2.9 |
+| Companion Doc | `PRD.md` v3.9 |
+| Document Version | 2.10 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.10** — §4.3 background-mode invocation extended with auto-open on completion: when a background analysis lands and no Mimir surface is open, the runner writes a TTL'd `modules.analysis.openOnNextPopup` marker and calls `openPopup()`. The popup's dispatcher drains the marker on mount and via `storage.onChanged`, routes to Log Analysis, and surfaces the entry. Surface state is detected via `chrome.runtime.getContexts({ contextTypes: ['POPUP', 'TAB'] })`, feature-detected and conservative when unavailable. New SW helper `src/background/surface-state.ts`. §9 storage namespaces gain `modules.analysis.openOnNextPopup`.
 - **2.9** — §7 standardized: a thin dispatcher (`src/background/ai-client.ts`) plus one `AiAdapter` implementation per provider in `src/background/ai-adapters/<provider>.ts`. The contract lives in `src/background/ai-adapters/types.ts`; the registry index is at `src/background/ai-adapters/index.ts`. Adding a new provider = create one file, add one entry to the registry. No user-visible behavior change.
 - **2.8** — §7 adds AI You adapter: dual-auth (X-API-KEY / Bearer), SSE buffered internally with `tool_execution` events filtered out, hardcoded three-model list and `tools: [163]` (date) with `executeToolsDirectly: true`. `AiProviderConfig` gains optional `authMode` field used only by AI You. Endpoint URL is user-supplied (no shipped default), same shape as `openai-compatible`.
 - **2.7** — §6 rewritten: CTI history shape changed to one entry per indicator with per-provider results nested in a `providers` map. LRU eviction now keys on `lastLookupAt`. Click flow no longer triggers refetch on stale; staleness is display-only. Old-shape entries are silently skipped on read (no migration). Service worker writes a slot on both success and failure so failed lookups are visible in history.
@@ -153,6 +154,8 @@ Badge rules:
 - otherwise: empty.
 
 When the popup mounts, `useContextMenuDispatcher()` sends a `popup.opened` message; the SW updates `settings.lastPopupOpenedTs = Date.now()` and refreshes the badge (effectively clearing unread). Pending count is in-memory only; on SW restart it resets to 0, since any in-flight call terminates with the worker. Unread is recomputed from history each refresh, so it survives restart correctly without any persisted counter.
+
+**Auto-open on completion (PRD F-LOG-7).** After writing the analysis to history, the background runner checks `chrome.runtime.getContexts({ contextTypes: ['POPUP', 'TAB'] })` (helper at `src/background/surface-state.ts`) for an open Mimir surface — a `POPUP` context, or a `TAB` context whose `documentUrl` is `<extension-origin>/window.html` (the standalone window). With none open, it writes `modules.analysis.openOnNextPopup = { entryId, ts }` and calls `openPopup()`. The popup-side dispatcher drains this key on mount and via `storage.onChanged`, sets the active module to Log Analysis, and stages the entry id in the `pendingAnalysisOpen` Zustand slot. The Log Analysis component reads the slot in a `useEffect`, looks the entry up in `analysis.history`, renders it as the active view, and clears the slot. Marker has a 2-minute TTL — older markers are ignored and cleared on read. `chrome.action.openPopup()` failures are non-fatal: history write happens unconditionally, and the next manual popup open consumes the marker. `getContexts` is feature-detected; when unavailable (older runtimes) the auto-open path is skipped conservatively and the badge handles delivery. Last-write-wins on the marker for two completions in close succession.
 
 A module that does not declare `contextMenu` (popup-side OR SW-side) simply does not appear in the right-click menu at all. The right-click surface is opt-in at two levels: the module author opts in by declaring it, and the user opts in (or opts out) per action via settings.
 
@@ -315,6 +318,7 @@ settings.lastPopupOpenedTs       — epoch ms; badge "unread" cutoff for backgro
 apikeys.*                        — provider API keys (plaintext; documented in PRD)
 modules.*                        — per-module UI state (session restoration); keyed by module id
 modules.contextMenu.pending      — single-slot popup-mode handoff { moduleId, selection, ts }
+modules.analysis.openOnNextPopup — single-slot { entryId, ts } marker; 2-min TTL; consumed and cleared on popup mount/storage-change
 cti.history.*                    — unified CTI lookup store (audit log + response cache, 100 max, LRU)
 analysis.history.*               — Log Analysis history (last 10 runs)
 prompts.*                        — user-customized system prompts

@@ -9,9 +9,15 @@ import {
   incrementBadgePending,
   refreshBadge,
 } from "@/background/badge";
-import { getSettings } from "@/storage/manager";
+import { isAnyMimirSurfaceOpen } from "@/background/surface-state";
+import { openPopup } from "@/browser-compat/menus";
+import { getSettings, storageSet } from "@/storage/manager";
 import { pushAnalysisHistory } from "@/modules/analysis/history";
-import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
+import {
+  ANALYSIS_OPEN_ON_NEXT_POPUP_KEY,
+  type AnalysisHistoryEntry,
+  type AnalysisOpenOnNextPopup,
+} from "@/modules/analysis/types";
 import type { AiProviderConfig } from "@/storage/types";
 
 const FEATURE_ID = "log-analysis";
@@ -24,6 +30,17 @@ function pickProviderId(
     return preferredId;
   }
   return providers[0]?.id;
+}
+
+// Best-effort auto-open of the popup when a background analysis completes
+// with no Mimir surface currently rendered. The marker survives popup-open
+// failure (TTL'd) so the next manual popup open routes to the entry. See
+// PRD §7.4 (F-LOG-7) and TECHNICAL_DESIGN.md §4.3.
+async function maybeAutoOpenForBackground(entryId: string): Promise<void> {
+  if (await isAnyMimirSurfaceOpen()) return;
+  const marker: AnalysisOpenOnNextPopup = { entryId, ts: Date.now() };
+  await storageSet(ANALYSIS_OPEN_ON_NEXT_POPUP_KEY, marker);
+  await openPopup();
 }
 
 export async function runAnalysisInBackground(
@@ -49,6 +66,7 @@ export async function runAnalysisInBackground(
         error: true,
       };
       await pushAnalysisHistory(entry);
+      await maybeAutoOpenForBackground(entry.id);
       return;
     }
 
@@ -70,6 +88,7 @@ export async function runAnalysisInBackground(
         providerType: result.providerType,
       };
       await pushAnalysisHistory(entry);
+      await maybeAutoOpenForBackground(entry.id);
     } else {
       const entry: AnalysisHistoryEntry = {
         id: crypto.randomUUID(),
@@ -81,6 +100,7 @@ export async function runAnalysisInBackground(
         error: true,
       };
       await pushAnalysisHistory(entry);
+      await maybeAutoOpenForBackground(entry.id);
     }
   } finally {
     decrementBadgePending();
