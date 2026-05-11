@@ -19,6 +19,7 @@ export interface Settings {
   redactionAiProviderId?: string; // optional override; falls back to defaultAiProviderId
   contextMenu: Record<string, boolean>; // moduleId -> enabled
   lastPopupOpenedTs?: number; // epoch ms; used by SW to compute the unread-analyses badge
+  lastActiveModuleId?: string; // module id to restore on popup/window open; undefined = no preference yet
 }
 
 export const DEFAULT_SETTINGS: Settings = {

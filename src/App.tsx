@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { getModules } from "@/registry/loader";
 import { useMimirStore } from "@/store";
+import { getSettings, updateSettings } from "@/storage/manager";
 import { useContextMenuDispatcher } from "@/surfaces/useContextMenuDispatcher";
 
 const modules = getModules();
@@ -21,10 +22,30 @@ export const App: React.FC = () => {
   useContextMenuDispatcher();
 
   useEffect(() => {
-    if (activeModuleId === "" && modules.length > 0) {
-      setActiveModuleId(modules[0].id);
-    }
-  }, [activeModuleId, setActiveModuleId]);
+    let cancelled = false;
+    void (async () => {
+      const settings = await getSettings();
+      if (cancelled) return;
+      // Re-check the latest state: the context-menu dispatcher may have
+      // already routed to a pending right-click target or analysis result.
+      // Those paths must win over the restore.
+      if (useMimirStore.getState().activeModuleId !== "") return;
+      const persisted = settings.lastActiveModuleId;
+      const restored =
+        persisted && modules.some((m) => m.id === persisted)
+          ? persisted
+          : modules[0]?.id;
+      if (restored) setActiveModuleId(restored);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setActiveModuleId]);
+
+  useEffect(() => {
+    if (activeModuleId === "") return;
+    void updateSettings({ lastActiveModuleId: activeModuleId });
+  }, [activeModuleId]);
 
   const activeModule = modules.find((m) => m.id === activeModuleId);
 
