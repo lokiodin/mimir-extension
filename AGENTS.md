@@ -56,7 +56,7 @@ These are hard rules. Violating them breaks the product.
 Every user-visible tool is a `MimirModule` (interface in `src/registry/types.ts`, full definition in `TECHNICAL_DESIGN.md` §4.1).
 
 - **Adding a tool means adding a module folder under `src/modules/`** with a default export matching `MimirModule`. The webpack-time loader (`src/registry/loader.ts`) discovers it. **Never hardcode a module into routing or sidebar logic.**
-- **Module categories are a closed set:** `encoding | utilities | cti | analysis | payloads`. Do not invent new categories without updating the technical design.
+- **Module categories are a closed set:** `encoding | utilities | cti | analysis | payloads | settings`. Do not invent new categories without updating the technical design. `settings` is reserved for the Settings module — only one module may use it.
 - **Sidebar order is computed from category + label.** No `order` field. Do not add one.
 - **Right-click integration is opt-in.** A module that wants a context-menu entry declares `contextMenu` in its export. Modules that don't need one omit the field.
 

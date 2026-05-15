@@ -1,6 +1,14 @@
-// MV3 service worker entry point.
-// Listeners must be registered synchronously at the top level
-// so they survive worker restarts.
+// MV3 background entry point.
+//
+// Chromium: this file is the service worker (manifest `background.service_worker`).
+// Firefox: this file is loaded as a non-persistent event-page script
+// (manifest `background.scripts`). Both run the same code path; the relevant
+// API differences (e.g. contextMenus namespace) are hidden behind
+// `src/browser-compat/`.
+//
+// In both environments, listeners must be registered synchronously at the
+// top level so they survive worker / event-page restarts — never inside an
+// async branch or behind an `await`.
 
 import { lookupVirusTotal } from "@/background/cti-client";
 import { lookupAbuseIPDB } from "@/background/abuseipdb-client";

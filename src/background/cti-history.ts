@@ -3,7 +3,7 @@
 // `providers`. Newest-first by lastLookupAt. LRU at 100. Re-lookups update
 // the existing entry in place and move it to the front.
 
-import { storageGet, storageSet } from "@/storage/manager";
+import { storageGet, storageSet, withStorageLock } from "@/storage/manager";
 import type {
   CtiHistoryEntry,
   CtiProvider,
@@ -84,49 +84,54 @@ function normalize(indicator: string): string {
 export async function upsertProviderResult(
   args: UpsertSuccessArgs | UpsertErrorArgs,
 ): Promise<void> {
-  const indicator = normalize(args.indicator);
-  const entries = await getCtiHistory();
-  const existing = entries.find((e) => e.indicator === indicator);
-  const others = entries.filter((e) => e.indicator !== indicator);
+  // Serialize concurrent provider writes for the same history key — the UI
+  // fans out three provider lookups in parallel; without this lock, two of
+  // the three persisted slots would be lost to last-write-wins.
+  return withStorageLock(HISTORY_KEY, async () => {
+    const indicator = normalize(args.indicator);
+    const entries = await getCtiHistory();
+    const existing = entries.find((e) => e.indicator === indicator);
+    const others = entries.filter((e) => e.indicator !== indicator);
 
-  const slot: ProviderResult =
-    "error" in args
+    const slot: ProviderResult =
+      "error" in args
+        ? {
+            verdict: "error",
+            summary: [],
+            response: null,
+            lookedUpAt: args.lookedUpAt,
+            staleAfter: args.staleAfter,
+            error: args.error,
+          }
+        : {
+            verdict: args.verdict,
+            summary: args.summary,
+            response: args.response,
+            lookedUpAt: args.lookedUpAt,
+            staleAfter: args.staleAfter,
+          };
+
+    const updated: CtiHistoryEntry = existing
       ? {
-          verdict: "error",
-          summary: [],
-          response: null,
-          lookedUpAt: args.lookedUpAt,
-          staleAfter: args.staleAfter,
-          error: args.error,
+          ...existing,
+          lastLookupAt: args.lookedUpAt,
+          providers: { ...existing.providers, [args.providerId]: slot },
         }
       : {
-          verdict: args.verdict,
-          summary: args.summary,
-          response: args.response,
-          lookedUpAt: args.lookedUpAt,
-          staleAfter: args.staleAfter,
+          indicator,
+          indicatorType: args.indicatorType,
+          query: args.query,
+          firstLookupAt: args.lookedUpAt,
+          lastLookupAt: args.lookedUpAt,
+          providers: { [args.providerId]: slot },
         };
 
-  const updated: CtiHistoryEntry = existing
-    ? {
-        ...existing,
-        lastLookupAt: args.lookedUpAt,
-        providers: { ...existing.providers, [args.providerId]: slot },
-      }
-    : {
-        indicator,
-        indicatorType: args.indicatorType,
-        query: args.query,
-        firstLookupAt: args.lookedUpAt,
-        lastLookupAt: args.lookedUpAt,
-        providers: { [args.providerId]: slot },
-      };
-
-  const next = [updated, ...others];
-  if (next.length > CTI_HISTORY_MAX) {
-    next.length = CTI_HISTORY_MAX;
-  }
-  await writeCtiHistory(next);
+    const next = [updated, ...others];
+    if (next.length > CTI_HISTORY_MAX) {
+      next.length = CTI_HISTORY_MAX;
+    }
+    await writeCtiHistory(next);
+  });
 }
 
 export async function clearCtiHistory(): Promise<void> {

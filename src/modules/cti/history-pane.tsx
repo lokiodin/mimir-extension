@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useStorageRevision } from "@/storage/context";
+import { useStorageKey } from "@/storage/context";
 import { getCtiHistory } from "@/background/cti-history";
 import type {
   CtiHistoryEntry,
@@ -53,7 +53,7 @@ export const HistoryPane: React.FC<HistoryPaneProps> = ({
   onSelect,
   selectedIndicator,
 }) => {
-  const revision = useStorageRevision();
+  const revision = useStorageKey("cti.history");
   const [entries, setEntries] = useState<CtiHistoryEntry[]>([]);
   const [filter, setFilter] = useState<"all" | Verdict>("all");
 

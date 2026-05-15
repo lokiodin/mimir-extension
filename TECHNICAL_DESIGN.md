@@ -74,7 +74,7 @@ A thin `browser-compat` module abstracts API differences (`storage` event semant
 - `storage` — settings, history, API keys.
 - `contextMenus` — right-click integration.
 - `activeTab` — read selected text only when the user invokes Mimir.
-- `host_permissions`: requested at runtime via `permissions.request()` for the user-configured AI endpoint and CTI hosts. Avoids declaring `<all_urls>` upfront.
+- `host_permissions`: the three first-party CTI hosts (`virustotal.com`, `api.abuseipdb.com`, `threatfox-api.abuse.ch`) are declared upfront — they are fixed, known, and asking the user mid-flow on every fresh install added friction without security benefit. The user-configured AI endpoint is the dynamic case: it goes through `optional_host_permissions` (`http://*/*`, `https://*/*`) and `permissions.request()` at first-use, since the AI host is user-typed and can be anything. Net effect: a small fixed install-time scope for known CTI providers; everything else opt-in at runtime.
 
 ## 4. Module System
 
@@ -85,7 +85,7 @@ Kept simple. No permissions registry, no signing, no sandboxing.
 ```typescript
 interface MimirModule {
   id: string;                    // stable, kebab-case, globally unique
-  category: ModuleCategory;      // 'encoding' | 'cti' | 'analysis' | 'utilities' | 'payloads'
+  category: ModuleCategory;      // 'encoding' | 'cti' | 'analysis' | 'utilities' | 'payloads' | 'settings'
   label: string;                 // sidebar display name
   icon?: React.FC;
   component: React.FC;           // the module's UI
@@ -107,7 +107,9 @@ type ModuleCategory =
   | 'cti'
   | 'analysis'
   | 'utilities'
-  | 'payloads';
+  | 'payloads'
+  | 'settings';   // reserved for the Settings module
+
 ```
 
 That's the whole interface. Modules import shared services (`storage`, `aiClient`, `redact`) directly from internal paths — no capability wrapper, no scoped facades. The user is the trust boundary; if they install a hostile module in their own fork, that's on them.
@@ -116,7 +118,7 @@ That's the whole interface. Modules import shared services (`storage`, `aiClient
 
 Built-in modules are discovered at build time by a webpack loader that scans `src/modules/*/index.ts` for default exports matching `MimirModule`. The registry is a plain object keyed by `id`.
 
-Sidebar render order is computed deterministically: **group by `category`** in a fixed category sequence (`encoding` → `utilities` → `cti` → `analysis` → `payloads`), then **alphabetical by `label`** within each group. No per-module `order` field — order is a function of category and label, nothing else.
+Sidebar render order is computed deterministically: **group by `category`** in a fixed category sequence (`encoding` → `utilities` → `cti` → `analysis` → `payloads` → `settings`), then **alphabetical by `label`** within each group. No per-module `order` field — order is a function of category and label, nothing else. `settings` sits last because the Settings module is operational rather than analytical.
 
 No dynamic code loading at runtime — MV3 CSP forbids it anyway, and we have no reason to want it. Custom modules are added to source and rebuilt.
 

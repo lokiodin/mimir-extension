@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useStorageRevision } from "@/storage/context";
+import { useStorageKey } from "@/storage/context";
 import { getAnalysisHistory } from "@/modules/analysis/history";
 import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
 
@@ -31,7 +31,7 @@ export const AnalysisHistoryPane: React.FC<AnalysisHistoryPaneProps> = ({
   onSelect,
   selectedId,
 }) => {
-  const revision = useStorageRevision();
+  const revision = useStorageKey("analysis.history");
   const [entries, setEntries] = useState<AnalysisHistoryEntry[]>([]);
 
   useEffect(() => {

@@ -20,6 +20,30 @@ export async function storageRemove(key: string): Promise<void> {
   await chrome.storage.local.remove(key);
 }
 
+// Per-key write mutex. chrome.storage.local has no transactional read-modify-
+// write, so concurrent upserts of the same key race: each caller reads the
+// same baseline, then last-write wins. The service worker is a singleton, so
+// a single in-memory promise chain per key is sufficient to serialize writes.
+// Callers wrap their full read+merge+write inside `withStorageLock`.
+const storageLocks = new Map<string, Promise<unknown>>();
+
+export function withStorageLock<T>(
+  key: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const previous = storageLocks.get(key) ?? Promise.resolve();
+  const next = previous.then(fn, fn);
+  storageLocks.set(
+    key,
+    next.finally(() => {
+      if (storageLocks.get(key) === next) {
+        storageLocks.delete(key);
+      }
+    }),
+  );
+  return next;
+}
+
 // Settings helpers (typed, namespaced under 'settings' key)
 export async function getSettings(): Promise<Settings> {
   const stored = await storageGet<Partial<Settings>>(SETTINGS_KEY);

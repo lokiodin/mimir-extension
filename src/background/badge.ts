@@ -13,7 +13,7 @@ import { getSettings } from "@/storage/manager";
 import { getAnalysisHistory } from "@/modules/analysis/history";
 
 const COLOR_PENDING = "#d97706"; // amber-600
-const COLOR_UNREAD = "#43A047"; // blue-600
+const COLOR_UNREAD = "#1E88E5"; // blue-600 (matches TECHNICAL_DESIGN §4.3)
 
 let pending = 0;
 

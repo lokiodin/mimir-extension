@@ -3,6 +3,7 @@
 
 import { getApiKey } from "@/storage/manager";
 import { withKeepalive } from "@/background/keepalive";
+import { REQUEST_TIMEOUT_MS } from "@/background/ai-adapters/shared/http";
 import type {
   CtiResult,
   CtiSummaryField,
@@ -11,7 +12,6 @@ import type {
 } from "@/background/cti-types";
 
 const VT_BASE = "https://www.virustotal.com/api/v3";
-const REQUEST_TIMEOUT_MS = 240_000;
 
 interface VtAnalysisStats {
   malicious?: number;

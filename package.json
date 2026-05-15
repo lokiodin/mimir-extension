@@ -9,10 +9,11 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "webpack serve --config webpack.chromium.ts",
+    "dev": "webpack serve --mode development --config webpack.chromium.ts",
+    "dev:firefox": "webpack serve --mode development --config webpack.firefox.ts",
     "build:chromium": "webpack --mode production --config webpack.chromium.ts",
     "build:firefox": "webpack --mode production --config webpack.firefox.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src/",
     "corpus:eval": "vitest run tests/redaction-corpus/runner.test.ts"

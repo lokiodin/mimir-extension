@@ -16,7 +16,9 @@ export const bearerToken: DetectorMeta = {
     for (const m of text.matchAll(BEARER)) {
       const value = m[1];
       if (value === undefined) continue;
-      const valueStart = (m.index ?? 0) + m[0].lastIndexOf(value);
+      // The value is always the trailing portion of the match (regex anchors
+      // it at the end of `m[0]`), so the offset is deterministic.
+      const valueStart = (m.index ?? 0) + m[0].length - value.length;
       out.push({
         type: "bearer token",
         start: valueStart,

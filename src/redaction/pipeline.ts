@@ -24,15 +24,26 @@ export function runStage1(
   enabled: Record<string, boolean>,
   state: PlaceholderState = createPlaceholderState(),
 ): Detection[] {
+  // Claims are kept sorted by `start` (non-overlapping by construction). A
+  // binary-insert + predecessor check keeps overlap resolution at O(n log n)
+  // for the whole pipeline instead of O(n²), which matters for multi-MB
+  // pasted logs.
   const claimed: Array<{ start: number; end: number }> = [];
   const detections: Detection[] = [];
 
-  for (const detector of DETECTORS) {
+  // Sort by priority ascending (1 = highest). The DETECTORS array order is
+  // currently maintained by convention; sorting here makes priority the
+  // single source of truth for overlap resolution.
+  const ordered = [...DETECTORS].sort((a, b) => a.priority - b.priority);
+
+  for (const detector of ordered) {
     if (!isDetectorEnabled(detector, enabled)) continue;
     const hits = detector.detect(text);
     for (const hit of hits) {
-      if (overlapsAny(hit, claimed)) continue;
-      claimed.push({ start: hit.start, end: hit.end });
+      const insertAt = lowerBoundByStart(claimed, hit.end);
+      if (insertAt > 0 && claimed[insertAt - 1].end > hit.start) continue;
+      if (insertAt < claimed.length && claimed[insertAt].start < hit.end) continue;
+      claimed.splice(insertAt, 0, { start: hit.start, end: hit.end });
       const placeholder = assignPlaceholder(
         state,
         detector.placeholderPrefix,
@@ -60,6 +71,21 @@ function isDetectorEnabled(
 ): boolean {
   // Toggles default to ON when not yet present in the user's settings.
   return enabled[detector.id] ?? true;
+}
+
+// First index in `arr` (sorted by `start` asc) whose `start` is >= `value`.
+function lowerBoundByStart(
+  arr: ReadonlyArray<{ start: number }>,
+  value: number,
+): number {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid].start < value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 function overlapsAny(

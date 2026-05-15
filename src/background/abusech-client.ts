@@ -3,6 +3,7 @@
 // the user in Settings; UI passes the resolved mode through to here.
 
 import { withKeepalive } from "@/background/keepalive";
+import { REQUEST_TIMEOUT_MS } from "@/background/ai-adapters/shared/http";
 import type {
   CtiResult,
   CtiSummaryField,
@@ -12,7 +13,6 @@ import type {
 import type { AbusechMode } from "@/storage/types";
 
 const THREATFOX_URL = "https://threatfox-api.abuse.ch/api/v1/";
-const REQUEST_TIMEOUT_MS = 240_000;
 
 interface ThreatFoxIoc {
   id?: string | number;

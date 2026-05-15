@@ -7,7 +7,6 @@ import common from "./webpack.common.ts";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default merge(common, {
-  mode: "production",
   output: {
     path: path.resolve(__dirname, "dist/chromium"),
     filename: "[name].js",

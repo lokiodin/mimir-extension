@@ -312,14 +312,17 @@ export const SettingsComponent: React.FC = () => {
             min="1"
             max="2160"
             value={settings.ctiTtlHours}
-            onChange={(e) =>
-              updateSettings({ ctiTtlHours: parseInt(e.target.value, 10) })
-            }
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              if (Number.isFinite(parsed) && parsed >= 1) {
+                updateSettings({ ctiTtlHours: parsed });
+              }
+            }}
             className="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Entries older than this are marked stale. Click a stale entry to
-            refresh.
+            Entries older than this are marked stale. To refresh, re-type the
+            indicator into the lookup field.
           </p>
           <div className="pt-2 mt-2 border-t border-gray-700 flex gap-2">
             <button
