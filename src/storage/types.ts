@@ -9,6 +9,9 @@ export interface AiProviderConfig {
 
 export type AbusechMode = "web" | "api";
 
+// Log Analysis report language. Closed set — union literal, not enum (AGENTS.md §3.1).
+export type AnalysisLanguage = "en" | "fr";
+
 export interface Settings {
   aiProviders: AiProviderConfig[];
   defaultAiProviderId?: string; // fallback for all AI-using modules
