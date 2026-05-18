@@ -54,6 +54,7 @@ export const AnalysisComponent: React.FC = () => {
 
   const [input, setInput] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("");
+  // Pre-settings-load default; must match resolveAnalysisLanguage's "en" fallback.
   const [language, setLanguage] = useState<AnalysisLanguage>("en");
   const [current, setCurrent] = useState<CurrentView | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
