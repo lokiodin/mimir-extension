@@ -189,11 +189,11 @@ export const AnalysisComponent: React.FC = () => {
       ) : (
         <>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-400">Provider</label>
+            <label className="text-xs text-gray-400 shrink-0">Provider</label>
             <select
               value={providerId}
               onChange={(e) => setProviderId(e.target.value)}
-              className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
+              className="flex-1 min-w-0 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
             >
               {settings.aiProviders.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -202,13 +202,13 @@ export const AnalysisComponent: React.FC = () => {
                 </option>
               ))}
             </select>
-            <label className="text-xs text-gray-400 ml-2">Language</label>
             <select
               value={language}
               onChange={(e) =>
                 handleLanguageChange(e.target.value as AnalysisLanguage)
               }
-              className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
+              aria-label="Output language"
+              className="shrink-0 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
             >
               <option value="en">EN</option>
               <option value="fr">FR</option>
@@ -216,7 +216,7 @@ export const AnalysisComponent: React.FC = () => {
             <button
               onClick={handleAnalyze}
               disabled={isLoading || input.trim() === "" || !providerId}
-              className="ml-auto px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800 disabled:opacity-50"
+              className="shrink-0 px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800 disabled:opacity-50"
             >
               {isLoading ? "Analyzing…" : "Analyze"}
             </button>
