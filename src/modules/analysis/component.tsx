@@ -15,6 +15,8 @@ import type {
   AiCompleteResponse,
   AiCompleteSuccess,
 } from "@/background/ai-types";
+import { resolveAnalysisLanguage } from "@/modules/analysis/language";
+import type { AnalysisLanguage } from "@/storage/types";
 
 const FEATURE_ID = "log-analysis";
 
@@ -43,7 +45,7 @@ interface CurrentView {
 }
 
 export const AnalysisComponent: React.FC = () => {
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
   const setActiveModuleId = useMimirStore((s) => s.setActiveModuleId);
   const pendingAnalysisOpen = useMimirStore((s) => s.pendingAnalysisOpen);
   const setPendingAnalysisOpen = useMimirStore(
@@ -52,6 +54,7 @@ export const AnalysisComponent: React.FC = () => {
 
   const [input, setInput] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("");
+  const [language, setLanguage] = useState<AnalysisLanguage>("en");
   const [current, setCurrent] = useState<CurrentView | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -70,6 +73,13 @@ export const AnalysisComponent: React.FC = () => {
         : (settings.aiProviders[0]?.id ?? "");
     setProviderId(fallback);
   }, [settings, providerId]);
+
+  // logAnalysisLanguage write-through is the source of truth: re-sync the
+  // dropdown whenever settings change. Idempotent after a write-through.
+  useEffect(() => {
+    if (!settings) return;
+    setLanguage(resolveAnalysisLanguage(settings));
+  }, [settings]);
 
   const mutation = useMutation<AiCompleteSuccess, Error, AiCompleteRequest>({
     mutationFn: sendComplete,
@@ -99,6 +109,13 @@ export const AnalysisComponent: React.FC = () => {
 
   const isLoading = mutation.status === "pending";
 
+  const handleLanguageChange = (next: AnalysisLanguage): void => {
+    setLanguage(next);
+    // Write-through: persist as the new default (also used by the
+    // right-click background path). Does not re-run analysis.
+    void updateSettings({ logAnalysisLanguage: next });
+  };
+
   const handleAnalyze = (): void => {
     const trimmed = input.trim();
     if (trimmed === "") return;
@@ -109,6 +126,7 @@ export const AnalysisComponent: React.FC = () => {
       providerId,
       featureId: FEATURE_ID,
       userInput: input,
+      language,
     });
   };
 
@@ -182,6 +200,17 @@ export const AnalysisComponent: React.FC = () => {
                   {p.model ? ` · ${p.model}` : ""})
                 </option>
               ))}
+            </select>
+            <label className="text-xs text-gray-400 ml-2">Language</label>
+            <select
+              value={language}
+              onChange={(e) =>
+                handleLanguageChange(e.target.value as AnalysisLanguage)
+              }
+              className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
+            >
+              <option value="en">EN</option>
+              <option value="fr">FR</option>
             </select>
             <button
               onClick={handleAnalyze}
