@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-interface CapturedReq {
-  system: string;
-}
-
-const captured: CapturedReq[] = [];
+const captured: Array<{ system: string }> = [];
 
 async function loadComplete() {
   vi.resetModules();
@@ -36,10 +32,6 @@ async function loadComplete() {
   const mod = await import("../../../src/background/ai-client");
   return mod.complete;
 }
-
-beforeEach(() => {
-  vi.resetModules();
-});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -81,6 +73,7 @@ describe("complete() — language directive", () => {
       userInput: "log line",
       language: "fr",
     });
+    expect(captured[0].system).toMatch(/\S/);
     expect(captured[0].system).toContain("Write your entire response in French");
     expect(captured[0].system).toContain("Do NOT translate technical or ambiguous terms");
   });
