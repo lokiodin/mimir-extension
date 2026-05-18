@@ -23,6 +23,7 @@ export interface Settings {
   contextMenu: Record<string, boolean>; // moduleId -> enabled
   lastPopupOpenedTs?: number; // epoch ms; used by SW to compute the unread-analyses badge
   lastActiveModuleId?: string; // module id to restore on popup/window open; undefined = no preference yet
+  logAnalysisLanguage?: AnalysisLanguage; // Log Analysis report language; undefined ⇒ "en"
 }
 
 export const DEFAULT_SETTINGS: Settings = {
