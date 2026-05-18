@@ -13,6 +13,7 @@ import { isAnyMimirSurfaceOpen } from "@/background/surface-state";
 import { openPopup } from "@/browser-compat/menus";
 import { getSettings, storageSet } from "@/storage/manager";
 import { pushAnalysisHistory } from "@/modules/analysis/history";
+import { resolveAnalysisLanguage } from "@/modules/analysis/language";
 import {
   ANALYSIS_OPEN_ON_NEXT_POPUP_KEY,
   type AnalysisHistoryEntry,
@@ -75,6 +76,7 @@ export async function runAnalysisInBackground(
       providerId,
       featureId: FEATURE_ID,
       userInput: selection,
+      language: resolveAnalysisLanguage(settings),
     });
 
     const provider = settings.aiProviders.find((p) => p.id === providerId);
