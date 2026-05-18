@@ -5,7 +5,7 @@
 
 import type { AnalysisLanguage } from "@/storage/types";
 
-const FRENCH_DIRECTIVE =
+export const FRENCH_DIRECTIVE =
   "\n\nWrite your entire response in French, including all section titles. " +
   "Do NOT translate technical or ambiguous terms: keep log field names, " +
   "commands, protocols, HTTP methods, status codes, tool/product names, " +

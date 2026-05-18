@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyLanguageDirective } from "../../../src/background/ai-language";
+import { applyLanguageDirective, FRENCH_DIRECTIVE } from "../../../src/background/ai-language";
 
 const SYSTEM = "You are an analyst.";
 
@@ -14,10 +14,10 @@ describe("applyLanguageDirective", () => {
 
   it("appends the French directive for French", () => {
     const out = applyLanguageDirective(SYSTEM, "fr");
-    expect(out.startsWith(SYSTEM)).toBe(true);
-    expect(out.length).toBeGreaterThan(SYSTEM.length);
-    expect(out).toContain("Write your entire response in French");
-    expect(out).toContain("Do NOT translate technical or ambiguous terms");
-    expect(out).toContain("IoCs");
+    expect(out).toBe(SYSTEM + FRENCH_DIRECTIVE);
+    expect(FRENCH_DIRECTIVE.startsWith("\n\n")).toBe(true);
+    expect(FRENCH_DIRECTIVE).toContain("Write your entire response in French");
+    expect(FRENCH_DIRECTIVE).toContain("Do NOT translate technical or ambiguous terms");
+    expect(FRENCH_DIRECTIVE).toContain("IoCs");
   });
 });
