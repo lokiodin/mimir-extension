@@ -56,7 +56,6 @@ const completeCalls: Array<{ language?: string }> = [];
 
 async function loadRunner() {
   vi.resetModules();
-  completeCalls.length = 0;
   vi.doMock("../../../src/background/ai-client", () => ({
     complete: vi.fn(async (req: { language?: string }) => {
       completeCalls.push({ language: req.language });
@@ -88,6 +87,7 @@ function seedSettings(
 
 beforeEach(() => {
   vi.resetModules();
+  completeCalls.length = 0;
 });
 
 afterEach(() => {
