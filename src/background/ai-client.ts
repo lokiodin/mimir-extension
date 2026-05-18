@@ -4,6 +4,7 @@
 // Standard async to callers — adapters that stream buffer internally.
 
 import { resolvePrompt } from "@/prompts";
+import { applyLanguageDirective } from "@/background/ai-language";
 import { getApiKey, getSettings } from "@/storage/manager";
 import type { AiProviderConfig } from "@/storage/types";
 import type {
@@ -47,7 +48,10 @@ export async function complete(
     if (!provider) {
       return { ok: false, error: "Provider not configured" };
     }
-    const system = await resolvePrompt(req.featureId);
+    const system = applyLanguageDirective(
+      await resolvePrompt(req.featureId),
+      req.language,
+    );
     const apiKeyRaw = await getApiKey(`ai.${provider.id}`);
     const apiKey =
       apiKeyRaw && apiKeyRaw.trim() !== "" ? apiKeyRaw : undefined;

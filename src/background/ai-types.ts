@@ -1,12 +1,13 @@
 // Shared AI client types. See TECHNICAL_DESIGN.md §7.
 
-import type { AiProviderConfig } from "@/storage/types";
+import type { AiProviderConfig, AnalysisLanguage } from "@/storage/types";
 
 export interface AiCompleteRequest {
   type: "ai.complete";
   providerId: string;
   featureId: string;
   userInput: string;
+  language?: AnalysisLanguage; // omitted ⇒ English / no directive
 }
 
 export interface AiCompleteSuccess {
