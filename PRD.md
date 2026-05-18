@@ -122,6 +122,7 @@ Each context-menu action is **individually toggleable** by the user in settings 
 | F-LOG-5 | **Local history of the last 10 analyses**, each storing the input, the AI response, timestamp, and provider used. Oldest is evicted when a new analysis would exceed the cap. |
 | F-LOG-6 | "Clear log analysis history" action wipes the store in one operation |
 | F-LOG-7 | When a background-mode (right-click) analysis completes and no Mimir surface (popup or standalone window) is currently open, the popup auto-opens and routes directly to the completed analysis. Best-effort: browsers may refuse `action.openPopup()` (e.g. expired user gesture); on refusal the badge and history are still updated, and the next manual popup open routes to the analysis. A 2-minute marker TTL prevents stale routing on later popup opens. |
+| F-LOG-8 | Output language selectable between English (default) and French via a popup dropdown. The AI writes the report directly in the chosen language; technical and ambiguous IT/security terms (log field names, commands, protocols, HTTP methods, status codes, tool/product names, file paths, usernames, hostnames, IoCs, established jargon) are left in their original English form. The choice persists (write-through) and is the language used by the right-click background path. Changing it does not re-run or alter an existing result. |
 
 ### 7.5 Redaction Module (Opt-In)
 

@@ -287,6 +287,8 @@ The user configures one or more providers in settings. Each AI-using module can 
 
 **Prompt resolution.** Each AI-using feature has a default system prompt baked into source. The user can override it in settings — overrides are stored in `chrome.storage.local` under `prompts.<feature-id>` and take precedence at call time. This is a simple two-layer lookup: user override → built-in default. There is no `AGENTS.md` involvement (see §1).
 
+**Output language.** `AiCompleteRequest` carries an optional `language` field (`"en" | "fr"`, type `AnalysisLanguage` in `src/storage/types.ts`). After prompt resolution and before adapter dispatch, `complete()` calls `applyLanguageDirective(system, req.language)` (`src/background/ai-language.ts`): English is a no-op (built-in prompts are already English); French appends a plain-text directive instructing the model to write in French while leaving technical/ambiguous IT terms in English. Adapters, the prompt format, and the user-override layer are untouched. Callers that omit `language` get English. The Log Analysis popup sources the value from `settings.logAnalysisLanguage` (write-through dropdown); the right-click background runner reads the same setting.
+
 **MV3 keepalive** is handled by the service worker wrapping the fetch in an alarms-based heartbeat (see §3).
 
 **AI You specifics.** Endpoint URL is user-supplied — no shipped default, same shape as `openai-compatible`. Two auth modes selectable in settings (`apikey` → `X-API-KEY: DGY_API:...` / `bearer` → `Authorization: Bearer ...`); the chosen mode is stored on the provider as `authMode`. Three hardcoded models: `aiyou-large-snc`, `aiyou-medium-snc`, `aiyou-small-snc` (no model-list fetch). Every request body has `stream: true`, `tools: [163]` (date), and `executeToolsDirectly: true` — the server runs the date tool transparently when the model decides to use it. The adapter consumes the SSE response inside `withKeepalive(...)` so the worker stays alive across the whole stream read; `tool_execution` progress events are filtered out and only `choices[0].delta.content` deltas are buffered. The buffered string is returned to callers like every other adapter, so the rest of Mimir is unaware of streaming.
@@ -317,6 +319,7 @@ Single `StorageManager` facade over `chrome.storage.local`. Keys are namespaced:
 settings.*                       — user preferences, AI provider config, detector toggles
 settings.contextMenu.*           — per-action enable/disable toggles, keyed by module id
 settings.lastPopupOpenedTs       — epoch ms; badge "unread" cutoff for background analyses
+settings.logAnalysisLanguage     — Log Analysis report language ("en" | "fr"); absent ⇒ "en"
 apikeys.*                        — provider API keys (plaintext; documented in PRD)
 modules.*                        — per-module UI state (session restoration); keyed by module id
 modules.contextMenu.pending      — single-slot popup-mode handoff { moduleId, selection, ts }
