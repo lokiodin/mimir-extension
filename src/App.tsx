@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { getModules } from "@/registry/loader";
 import { useMimirStore } from "@/store";
 import { getSettings, updateSettings } from "@/storage/manager";
@@ -49,6 +49,34 @@ export const App: React.FC = () => {
 
   const activeModule = modules.find((m) => m.id === activeModuleId);
 
+  const navRef = useRef<HTMLElement>(null);
+
+  const focusModule = (id: string) => {
+    setActiveModuleId(id);
+    navRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-module-id="${id}"]`)
+      ?.focus();
+  };
+
+  const handleNavKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    if (modules.length === 0) return;
+    const cur = Math.max(
+      0,
+      modules.findIndex((m) => m.id === activeModuleId),
+    );
+    const next =
+      e.key === "ArrowDown"
+        ? (cur + 1) % modules.length
+        : e.key === "ArrowUp"
+          ? (cur - 1 + modules.length) % modules.length
+          : e.key === "Home"
+            ? 0
+            : modules.length - 1;
+    focusModule(modules[next].id);
+  };
+
   const openWindow = () => {
     chrome.runtime.sendMessage({ type: "open-window" });
   };
@@ -57,7 +85,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
-      <nav className="w-34 border-r border-gray-700 p-2 overflow-y-auto flex flex-col">
+      <nav
+        ref={navRef}
+        aria-label="Modules"
+        onKeyDown={handleNavKeyDown}
+        className="w-34 border-r border-gray-700 p-2 overflow-y-auto flex flex-col"
+      >
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <h1 className="text-lg font-bold">Mimir</h1>
           {surfaceKind === "popup" && (
@@ -82,6 +115,8 @@ export const App: React.FC = () => {
                   </div>
                 )}
                 <button
+                  data-module-id={mod.id}
+                  aria-current={activeModuleId === mod.id ? "true" : undefined}
                   onClick={() => setActiveModuleId(mod.id)}
                   className={`block w-full text-left px-2 py-1 rounded text-sm ${
                     activeModuleId === mod.id

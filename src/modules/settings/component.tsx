@@ -83,7 +83,7 @@ const Section: React.FC<SectionProps> = ({
       <span className="text-gray-400">{openSection === id ? "−" : "+"}</span>
     </button>
     {openSection === id && (
-      <div className="px-4 py-3 border-t border-gray-700 bg-gray-850">
+      <div className="px-4 py-3 border-t border-gray-700 bg-gray-800">
         {children}
       </div>
     )}

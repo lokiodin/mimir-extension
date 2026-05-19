@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* Keyboard-focus indicator. !important overrides Tailwind's focus:outline-none
+ * utilities (applied on :focus) so keyboard users always get a visible ring;
+ * :focus-visible keeps it off for mouse/touch interaction. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid rgb(96 165 250) !important;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Markdown rendering scope. Tailwind v4 Preflight strips default browser
  * styles on headings/lists, so we re-apply them under .mimir-md instead of
  * pulling in @tailwindcss/typography. */
