@@ -9,6 +9,7 @@ import {
   jwtDecode,
   jwtDecodeParts,
   jwtEncodeParts,
+  jwtVerify,
   OPERATIONS,
   urlDecode,
   urlEncode,
@@ -330,3 +331,60 @@ describe("OPERATIONS registry", () => {
     expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT"]));
   });
 });
+
+describe("jwtVerify HS / none / temporal", () => {
+  // jwt.io classic HS256 sample; secret is the jwt.io default.
+  const HS = {
+    token:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+      ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ" +
+      ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+    secret: "your-256-bit-secret",
+  };
+
+  it("verifies a valid HS256 token", async () => {
+    const v = await jwtVerify(HS.token, HS.secret);
+    expect(v.signature).toBe("valid");
+    expect(v.alg).toBe("HS256");
+  });
+
+  it("reports invalid on wrong secret", async () => {
+    const v = await jwtVerify(HS.token, "wrong-secret");
+    expect(v.signature).toBe("invalid");
+  });
+
+  it("flags alg:none (any casing) as unsigned, no crypto", async () => {
+    // header {"alg":"NoNe"}  payload {"sub":"x"}
+    const header = base64urlJson({ alg: "NoNe" });
+    const payload = base64urlJson({ sub: "x" });
+    const v = await jwtVerify(`${header}.${payload}.`, "irrelevant");
+    expect(v.signature).toBe("unsigned");
+    expect(v.warnings.join(" ")).toMatch(/alg: none/i);
+  });
+
+  it("computes temporal independently of signature", async () => {
+    const past = Math.floor(Date.now() / 1000) - 3600;
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    const header = base64urlJson({ alg: "HS256" });
+    const payload = base64urlJson({ exp: past, nbf: future });
+    // Bad signature on purpose; temporal still computed.
+    const v = await jwtVerify(`${header}.${payload}.bad`, "secret");
+    expect(v.signature).toBe("invalid");
+    expect(v.temporal.expired).toBe(true);
+    expect(v.temporal.notYetValid).toBe(true);
+  });
+
+  it("returns an error envelope, never throws, on garbage", async () => {
+    const v = await jwtVerify("not-a-jwt", "k");
+    expect(v.signature).toBe("error");
+    expect(typeof v.detail).toBe("string");
+  });
+});
+
+// Local test helper: base64url-encode a JSON object.
+function base64urlJson(obj: unknown): string {
+  return btoa(JSON.stringify(obj))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}

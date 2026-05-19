@@ -170,7 +170,7 @@ function base64UrlEncodeString(s: string): string {
 }
 
 // Used by jwtVerify in Task 2 (needs raw signature bytes for crypto.subtle.verify).
-function base64UrlToBytes(segment: string): Uint8Array {
+function base64UrlToBytes(segment: string): Uint8Array<ArrayBuffer> {
   let normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
   const remainder = normalized.length % 4;
   if (remainder === 2) normalized += "==";
@@ -182,7 +182,7 @@ function base64UrlToBytes(segment: string): Uint8Array {
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : String(e));
   }
-  return binaryStringToBytes(binary);
+  return new Uint8Array(binaryStringToBytes(binary)) as Uint8Array<ArrayBuffer>;
 }
 
 export interface JwtParts {
@@ -253,6 +253,125 @@ export function jwtEncodeParts(parts: JwtParts): string {
   const h = base64UrlEncodeString(JSON.stringify(header));
   const p = base64UrlEncodeString(JSON.stringify(payload));
   return `${h}.${p}.${parts.signature}`;
+}
+
+export type JwtSignatureStatus =
+  | "valid"
+  | "invalid"
+  | "unsigned"
+  | "unsupported-alg"
+  | "error";
+
+export interface JwtVerdict {
+  signature: JwtSignatureStatus;
+  alg: string;
+  temporal: { expired?: boolean; notYetValid?: boolean; iatFuture?: boolean };
+  warnings: string[];
+  detail?: string;
+}
+
+function hashForAlg(alg: string): "SHA-256" | "SHA-384" | "SHA-512" {
+  if (alg.endsWith("256")) return "SHA-256";
+  if (alg.endsWith("384")) return "SHA-384";
+  if (alg.endsWith("512")) return "SHA-512";
+  throw new Error(`Unsupported alg: ${alg}`);
+}
+
+function computeTemporal(payload: unknown): JwtVerdict["temporal"] {
+  const t: JwtVerdict["temporal"] = {};
+  if (typeof payload !== "object" || payload === null) return t;
+  const p = payload as Record<string, unknown>;
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof p.exp === "number" && now >= p.exp) t.expired = true;
+  if (typeof p.nbf === "number" && now < p.nbf) t.notYetValid = true;
+  if (typeof p.iat === "number" && p.iat > now) t.iatFuture = true;
+  return t;
+}
+
+export async function jwtVerify(
+  token: string,
+  key: string,
+): Promise<JwtVerdict> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return {
+        signature: "error",
+        alg: "",
+        temporal: {},
+        warnings: [],
+        detail: `JWT must have 3 parts (got ${parts.length})`,
+      };
+    }
+    const [headerSeg, payloadSeg, sigSeg] = parts;
+    const header = JSON.parse(base64UrlDecodeToString(headerSeg)) as Record<
+      string,
+      unknown
+    >;
+    const payload = JSON.parse(base64UrlDecodeToString(payloadSeg));
+    const alg = typeof header.alg === "string" ? header.alg : "";
+    const temporal = computeTemporal(payload);
+
+    if (alg.toLowerCase() === "none") {
+      return {
+        signature: "unsigned",
+        alg,
+        temporal,
+        warnings: [
+          "Token is unsigned (alg: none) — signature not verified.",
+        ],
+      };
+    }
+
+    const warnings: string[] = [];
+    // Heuristic: treats any {-prefixed string as a JWK/JWKS; a JSON-shaped
+    // HMAC secret would trigger a false-positive warning — acceptable per spec §3.4.
+    const looksAsymmetricKey =
+      key.includes("-----BEGIN") || key.trimStart().startsWith("{");
+
+    if (alg.startsWith("HS")) {
+      if (looksAsymmetricKey) {
+        warnings.push(
+          "Possible algorithm-confusion: asymmetric public key supplied for an HMAC (HS*) token (RS→HS attack pattern).",
+        );
+      }
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(key),
+        { name: "HMAC", hash: hashForAlg(alg) },
+        false,
+        ["verify"],
+      );
+      const ok = await crypto.subtle.verify(
+        "HMAC",
+        cryptoKey,
+        base64UrlToBytes(sigSeg),
+        new TextEncoder().encode(`${headerSeg}.${payloadSeg}`),
+      );
+      return {
+        signature: ok ? "valid" : "invalid",
+        alg,
+        temporal,
+        warnings,
+      };
+    }
+
+    return {
+      signature: "unsupported-alg",
+      alg,
+      temporal,
+      warnings,
+      detail: `Algorithm ${alg} not yet implemented.`,
+    };
+  } catch (e) {
+    return {
+      signature: "error",
+      alg: "",
+      temporal: {},
+      warnings: [],
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
 }
 
 // Signature verification is intentionally deferred to v1.1+ per PRD §7.1.
