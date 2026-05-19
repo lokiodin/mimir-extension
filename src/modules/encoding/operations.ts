@@ -158,6 +158,103 @@ function base64UrlDecodeToString(segment: string): string {
   return new TextDecoder().decode(binaryStringToBytes(binary));
 }
 
+function base64UrlEncodeBytes(bytes: Uint8Array): string {
+  return btoa(bytesToBinaryString(bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function base64UrlEncodeString(s: string): string {
+  return base64UrlEncodeBytes(new TextEncoder().encode(s));
+}
+
+// Used by jwtVerify in Task 2 (needs raw signature bytes for crypto.subtle.verify).
+function base64UrlToBytes(segment: string): Uint8Array {
+  let normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+  if (remainder === 2) normalized += "==";
+  else if (remainder === 3) normalized += "=";
+  else if (remainder === 1) throw new Error("invalid length");
+  let binary: string;
+  try {
+    binary = atob(normalized);
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : String(e));
+  }
+  return binaryStringToBytes(binary);
+}
+
+export interface JwtParts {
+  header: string; // pretty JSON text
+  payload: string; // pretty JSON text
+  signature: string; // raw base64url segment (may be empty)
+}
+
+export function jwtDecodeParts(token: string): JwtParts {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error(`JWT must have 3 parts (got ${parts.length})`);
+  }
+  const [headerSeg, payloadSeg, sigSeg] = parts;
+
+  let headerStr: string;
+  try {
+    headerStr = base64UrlDecodeToString(headerSeg);
+  } catch (e) {
+    throw new Error(
+      `JWT header is not valid base64url: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  let payloadStr: string;
+  try {
+    payloadStr = base64UrlDecodeToString(payloadSeg);
+  } catch (e) {
+    throw new Error(
+      `JWT payload is not valid base64url: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+
+  let header: unknown;
+  try {
+    header = JSON.parse(headerStr);
+  } catch {
+    throw new Error("JWT header is not valid JSON");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(payloadStr);
+  } catch {
+    throw new Error("JWT payload is not valid JSON");
+  }
+
+  return {
+    header: JSON.stringify(header, null, 2),
+    payload: JSON.stringify(payload, null, 2),
+    signature: sigSeg,
+  };
+}
+
+export function jwtEncodeParts(parts: JwtParts): string {
+  let header: unknown;
+  try {
+    header = JSON.parse(parts.header);
+  } catch {
+    throw new Error("JWT header is not valid JSON");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(parts.payload);
+  } catch {
+    throw new Error("JWT payload is not valid JSON");
+  }
+  // JSON.stringify (default) produces compact key-stable output, which is
+  // the correct canonical form for the JWT signing input.
+  const h = base64UrlEncodeString(JSON.stringify(header));
+  const p = base64UrlEncodeString(JSON.stringify(payload));
+  return `${h}.${p}.${parts.signature}`;
+}
+
 // Signature verification is intentionally deferred to v1.1+ per PRD §7.1.
 export function jwtDecode(input: string): string {
   const parts = input.split(".");

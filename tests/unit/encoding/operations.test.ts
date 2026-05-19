@@ -7,6 +7,8 @@ import {
   htmlDecode,
   htmlEncode,
   jwtDecode,
+  jwtDecodeParts,
+  jwtEncodeParts,
   OPERATIONS,
   urlDecode,
   urlEncode,
@@ -244,6 +246,66 @@ describe("jwt", () => {
     const out = jwtDecode(token);
     expect(out).toContain('"alg": "none"');
     expect(out).toContain('"a": ">>>"');
+  });
+});
+
+describe("jwt parts", () => {
+  const VALID_TOKEN =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+    ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ" +
+    ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+
+  it("decodes into pretty header/payload + raw signature", () => {
+    const p = jwtDecodeParts(VALID_TOKEN);
+    expect(JSON.parse(p.header)).toEqual({ alg: "HS256", typ: "JWT" });
+    expect(JSON.parse(p.payload)).toEqual({
+      sub: "1234567890",
+      name: "John Doe",
+      iat: 1516239022,
+    });
+    expect(p.signature).toBe("SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c");
+  });
+
+  it("rejects non-3-part token", () => {
+    expect(() => jwtDecodeParts("a.b")).toThrow(/3 parts \(got 2\)/);
+  });
+
+  it("re-encodes parts back to a structurally valid token", () => {
+    const p = jwtDecodeParts(VALID_TOKEN);
+    const t = jwtEncodeParts(p);
+    expect(t.split(".")).toHaveLength(3);
+    expect(jwtDecodeParts(t).payload).toEqual(p.payload);
+  });
+
+  it("keeps the signature segment verbatim on re-encode (incl. empty)", () => {
+    const p = jwtDecodeParts(VALID_TOKEN);
+    expect(jwtEncodeParts({ ...p, signature: "" }).endsWith(".")).toBe(true);
+    expect(jwtEncodeParts({ ...p, signature: "zzz" }).endsWith(".zzz")).toBe(true);
+  });
+
+  it("throws a clear error on invalid header JSON when re-encoding", () => {
+    expect(() =>
+      jwtEncodeParts({ header: "not json", payload: "{}", signature: "x" }),
+    ).toThrow(/header is not valid JSON/);
+  });
+
+  it("rejects a header segment that is not valid base64url", () => {
+    expect(() => jwtDecodeParts("!!!.e30.sig")).toThrow(
+      /header is not valid base64url/,
+    );
+  });
+
+  it("rejects a header that decodes but is not JSON", () => {
+    // "bm90LWpzb24" = base64url("not-json")
+    expect(() => jwtDecodeParts("bm90LWpzb24.e30.sig")).toThrow(
+      /header is not valid JSON/,
+    );
+  });
+
+  it("rejects a payload that decodes but is not JSON", () => {
+    expect(() => jwtDecodeParts("e30.bm90LWpzb24.sig")).toThrow(
+      /payload is not valid JSON/,
+    );
   });
 });
 
