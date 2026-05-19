@@ -8,7 +8,14 @@ function ensureInit(): void {
   mermaid.initialize({
     startOnLoad: false,
     theme: "dark",
-    securityLevel: "loose",
+    // Diagram source is untrusted (LLM/CTI output reaches this renderer via
+    // MarkdownView's mermaid fence). "strict" runs DOMPurify on the produced
+    // SVG and disables click call/href callbacks; htmlLabels:false closes the
+    // foreignObject HTML-label injection path; the `secure` lock stops a
+    // malicious %%{init}%% directive in the diagram from downgrading these.
+    securityLevel: "strict",
+    htmlLabels: false,
+    secure: ["secure", "securityLevel", "startOnLoad", "maxTextSize"],
   });
 }
 

@@ -442,7 +442,10 @@ Distribution: GitHub releases with the unpacked builds and zips. Manual install 
 │   ├── surfaces/                # popup, window entries
 │   ├── browser-compat/          # Chromium/Firefox shim
 │   ├── App.tsx
-│   └── main.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   ├── store.ts                 # Zustand cross-module store (see §10)
+│   └── webpack.d.ts             # require.context typing for the loader
 ├── tests/
 │   ├── unit/
 │   ├── integration/
