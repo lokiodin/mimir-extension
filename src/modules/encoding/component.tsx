@@ -6,6 +6,7 @@ import {
   type TextTransform,
 } from "@/components/TextTransformPanel";
 import { useMimirStore } from "@/store";
+import { JwtPanel } from "@/modules/encoding/jwt-panel";
 
 const STORAGE_KEY = "modules.encoding";
 const PERSIST_DEBOUNCE_MS = 250;
@@ -82,6 +83,31 @@ export const EncodingComponent: React.FC = () => {
     setInput(pendingInput.value);
     setPendingInput(null);
   }, [hydrated, pendingInput, setPendingInput]);
+
+  if (operationId === "jwt-decode") {
+    return (
+      <div className="flex h-full flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <label htmlFor="enc-op" className="text-sm text-gray-300">
+            Operation
+          </label>
+          <select
+            id="enc-op"
+            value={operationId}
+            onChange={(e) => setOperationId(e.target.value as OperationId)}
+            className="bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm"
+          >
+            {OPERATIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <JwtPanel input={input} onInputChange={setInput} />
+      </div>
+    );
+  }
 
   return (
     <TextTransformPanel
