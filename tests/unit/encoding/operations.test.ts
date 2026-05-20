@@ -555,3 +555,86 @@ describe("jwtVerify asymmetric", () => {
     );
   });
 });
+
+describe("jwtVerify EdDSA", () => {
+  it("verifies EdDSA where supported, else reports unsupported-alg", async () => {
+    let kp: CryptoKeyPair | null = null;
+    try {
+      kp = (await crypto.subtle.generateKey("Ed25519", true, [
+        "sign",
+        "verify",
+      ])) as CryptoKeyPair;
+    } catch {
+      kp = null;
+    }
+    const b64urlStr = (s: string) =>
+      btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const header = b64urlStr(JSON.stringify({ alg: "EdDSA" }));
+    const payload = b64urlStr(JSON.stringify({ sub: "x" }));
+
+    if (kp === null) {
+      const v = await jwtVerify(`${header}.${payload}.AAAA`, "{}");
+      expect(v.signature).toBe("unsupported-alg");
+      expect(v.detail).toMatch(/Ed25519/);
+      return;
+    }
+    const sigBuf = await crypto.subtle.sign(
+      "Ed25519",
+      kp.privateKey,
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+    let bin = "";
+    const u = new Uint8Array(sigBuf);
+    for (let i = 0; i < u.length; i++) bin += String.fromCharCode(u[i]);
+    const sig = btoa(bin)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const jwk = await crypto.subtle.exportKey("jwk", kp.publicKey);
+    const v = await jwtVerify(
+      `${header}.${payload}.${sig}`,
+      JSON.stringify(jwk),
+    );
+    expect(v.signature).toBe("valid");
+  });
+
+  it("EdDSA: errors when JWKS has no matching kid (skipped if unsupported)", async () => {
+    let kp: CryptoKeyPair | null = null;
+    try {
+      kp = (await crypto.subtle.generateKey("Ed25519", true, [
+        "sign",
+        "verify",
+      ])) as CryptoKeyPair;
+    } catch {
+      kp = null;
+    }
+    if (kp === null) return; // skip when Ed25519 unsupported
+    const b64urlStr = (s: string) =>
+      btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const header = b64urlStr(JSON.stringify({ alg: "EdDSA", kid: "missing" }));
+    const payload = b64urlStr(JSON.stringify({ sub: "x" }));
+    const sigBuf = await crypto.subtle.sign(
+      "Ed25519",
+      kp.privateKey,
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+    let bin = "";
+    const u = new Uint8Array(sigBuf);
+    for (let i = 0; i < u.length; i++) bin += String.fromCharCode(u[i]);
+    const sig = btoa(bin)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    // Build a 2-key JWKS with kids that don't match "missing".
+    const a = (await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"])) as CryptoKeyPair;
+    const b = (await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"])) as CryptoKeyPair;
+    const jwkA = { ...(await crypto.subtle.exportKey("jwk", a.publicKey)), kid: "a" };
+    const jwkB = { ...(await crypto.subtle.exportKey("jwk", b.publicKey)), kid: "b" };
+    const v = await jwtVerify(
+      `${header}.${payload}.${sig}`,
+      JSON.stringify({ keys: [jwkA, jwkB] }),
+    );
+    expect(v.signature).toBe("error");
+    expect(v.detail).toMatch(/No matching key in JWKS for kid 'missing'/);
+  });
+});

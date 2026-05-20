@@ -455,6 +455,77 @@ export async function jwtVerify(
       return { signature: ok ? "valid" : "invalid", alg, temporal, warnings };
     }
 
+    if (alg === "EdDSA") {
+      if (!looksAsymmetricKey) {
+        warnings.push(
+          `Expected a public key (PEM/JWK/JWKS) for ${alg}; got a raw secret.`,
+        );
+      }
+      try {
+        const kid =
+          typeof header.kid === "string" ? header.kid : undefined;
+        let cryptoKey: CryptoKey;
+        const trimmed = key.trim();
+        if (trimmed.startsWith("-----BEGIN")) {
+          cryptoKey = await crypto.subtle.importKey(
+            "spki",
+            pemToBytes(trimmed),
+            "Ed25519",
+            false,
+            ["verify"],
+          );
+        } else {
+          const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+          let jwk: Record<string, unknown> | null;
+          if (Array.isArray(parsed.keys)) {
+            const keys = parsed.keys as Array<Record<string, unknown>>;
+            jwk = kid
+              ? (keys.find((k) => k.kid === kid) ?? null)
+              : keys.length === 1
+                ? keys[0]
+                : null;
+          } else {
+            jwk = parsed;
+          }
+          if (jwk === null) {
+            throw new Error(
+              `No matching key in JWKS for kid '${kid ?? "(none)"}'.`,
+            );
+          }
+          cryptoKey = await crypto.subtle.importKey(
+            "jwk",
+            jwk as JsonWebKey,
+            "Ed25519",
+            false,
+            ["verify"],
+          );
+        }
+        const ok = await crypto.subtle.verify(
+          "Ed25519",
+          cryptoKey,
+          base64UrlToBytes(sigSeg),
+          new TextEncoder().encode(`${headerSeg}.${payloadSeg}`),
+        );
+        return { signature: ok ? "valid" : "invalid", alg, temporal, warnings };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/No matching key/.test(msg)) {
+          return { signature: "error", alg, temporal, warnings, detail: msg };
+        }
+        if (e instanceof DOMException && e.name === "NotSupportedError") {
+          return {
+            signature: "unsupported-alg",
+            alg,
+            temporal,
+            warnings,
+            detail:
+              "EdDSA (Ed25519) requires Chrome ≥137 / Firefox ≥130; this browser's Web Crypto lacks it.",
+          };
+        }
+        return { signature: "error", alg, temporal, warnings, detail: msg };
+      }
+    }
+
     return {
       signature: "unsupported-alg",
       alg,
