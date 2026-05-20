@@ -9,6 +9,7 @@ import {
   jwtDecode,
   jwtDecodeParts,
   jwtEncodeParts,
+  jwtHmacResign,
   jwtVerify,
   OPERATIONS,
   urlDecode,
@@ -636,5 +637,34 @@ describe("jwtVerify EdDSA", () => {
     );
     expect(v.signature).toBe("error");
     expect(v.detail).toMatch(/No matching key in JWKS for kid 'missing'/);
+  });
+});
+
+describe("jwtHmacResign", () => {
+  it("produces a token that verifies with the same secret", async () => {
+    const t = await jwtHmacResign(
+      JSON.stringify({ alg: "HS256", typ: "JWT" }),
+      JSON.stringify({ sub: "forged" }),
+      "s3cr3t",
+      "HS256",
+    );
+    expect((await jwtVerify(t, "s3cr3t")).signature).toBe("valid");
+    expect((await jwtVerify(t, "nope")).signature).toBe("invalid");
+  });
+
+  it("supports HS384/HS512", async () => {
+    const t = await jwtHmacResign(
+      JSON.stringify({ alg: "HS512" }),
+      "{}",
+      "k",
+      "HS512",
+    );
+    expect((await jwtVerify(t, "k")).signature).toBe("valid");
+  });
+
+  it("throws a clear error on invalid header JSON", async () => {
+    await expect(
+      jwtHmacResign("not json", "{}", "k", "HS256"),
+    ).rejects.toThrow(/header is not valid JSON/);
   });
 });

@@ -544,6 +544,51 @@ export async function jwtVerify(
   }
 }
 
+// HMAC re-sign over the (re-encoded) header.payload. The caller supplies the
+// secret string. For the RS->HS confusion attack the caller passes the pasted
+// public-key text as `secret` and picks the HS* variant by the original alg's
+// hash size (RS256/ES256/PS256/EdDSA -> HS256, *384 -> HS384, *512 -> HS512).
+export async function jwtHmacResign(
+  headerJson: string,
+  payloadJson: string,
+  secret: string,
+  hsAlg: "HS256" | "HS384" | "HS512",
+): Promise<string> {
+  let header: unknown;
+  try {
+    header = JSON.parse(headerJson);
+  } catch {
+    throw new Error("JWT header is not valid JSON");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(payloadJson);
+  } catch {
+    throw new Error("JWT payload is not valid JSON");
+  }
+  const hash =
+    hsAlg === "HS256" ? "SHA-256" : hsAlg === "HS384" ? "SHA-384" : "SHA-512";
+  const signingInput =
+    base64UrlEncodeString(JSON.stringify(header)) +
+    "." +
+    base64UrlEncodeString(JSON.stringify(payload));
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash },
+    false,
+    ["sign"],
+  );
+  const sig = new Uint8Array(
+    await crypto.subtle.sign(
+      "HMAC",
+      cryptoKey,
+      new TextEncoder().encode(signingInput),
+    ),
+  );
+  return `${signingInput}.${base64UrlEncodeBytes(sig)}`;
+}
+
 // Signature verification is intentionally deferred to v1.1+ per PRD §7.1.
 export function jwtDecode(input: string): string {
   const parts = input.split(".");
