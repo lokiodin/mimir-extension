@@ -35,6 +35,7 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
   const sigId = `${baseId}-signature`;
   const secretId = `${baseId}-secret`;
   const verifyKeyId = `${baseId}-verify-key`;
+  const tokenId = `${baseId}-token`;
   const [parts, setParts] = useState<JwtParts>({
     header: "",
     payload: "",
@@ -45,6 +46,7 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
   const [secret, setSecret] = useState<string>("");
   const [verdict, setVerdict] = useState<JwtVerdict | null>(null);
   const lastDecoded = useRef<string>("");
+  const skipRederive = useRef<boolean>(false);
 
   // Decode incoming token text into editable parts (once per distinct input).
   useEffect(() => {
@@ -71,6 +73,10 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
   const [token, setToken] = useState<string>("");
   const [encodeError, setEncodeError] = useState<string | null>(null);
   useEffect(() => {
+    if (skipRederive.current) {
+      skipRederive.current = false;
+      return;
+    }
     let cancelled = false;
     const run = async (): Promise<void> => {
       try {
@@ -104,6 +110,20 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
       cancelled = true;
     };
   }, [parts, secret, headerAlg]);
+
+  const onTokenChange = (next: string): void => {
+    setToken(next);
+    if (next === "") {
+      return;
+    }
+    try {
+      setParts(jwtDecodeParts(next));
+      setEncodeError(null);
+      skipRederive.current = true;
+    } catch (e) {
+      setEncodeError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const onVerify = async (): Promise<void> => {
     setVerdict(await jwtVerify(token || input, verifyKey));
@@ -175,25 +195,31 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         </div>
       )}
 
-      <div className="flex flex-col gap-1">
-        <span className="text-xs text-gray-400">Token output</span>
-        <div className="relative flex">
-          <textarea
-            value={token}
-            readOnly
-            spellCheck={false}
-            className={`${TA_CLASS} min-h-[4rem]`}
-          />
-          {token !== "" && (
-            <CopyIconButton text={token} label="Copy token" />
-          )}
-        </div>
-        {encodeError !== null && (
-          <div aria-live="polite" className={ERR_CLASS}>
-            {encodeError}
-          </div>
+      <Field
+        label={
+          secret !== ""
+            ? "Token (computed — clear secret to edit)"
+            : "Token (paste a JWT here to repopulate the fields above)"
+        }
+        htmlFor={tokenId}
+      >
+        <textarea
+          id={tokenId}
+          value={token}
+          onChange={(e) => onTokenChange(e.target.value)}
+          readOnly={secret !== ""}
+          spellCheck={false}
+          className={`${TA_CLASS} min-h-[4rem]${secret !== "" ? " cursor-not-allowed opacity-60" : ""}`}
+        />
+        {token !== "" && (
+          <CopyIconButton text={token} label="Copy token" />
         )}
-      </div>
+      </Field>
+      {encodeError !== null && (
+        <div aria-live="polite" className={ERR_CLASS}>
+          {encodeError}
+        </div>
+      )}
 
       <Field label="Verification key (secret / PEM / JWK / JWKS)" htmlFor={verifyKeyId}>
         <textarea
