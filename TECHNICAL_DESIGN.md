@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.9 |
-| Document Version | 2.10 |
+| Document Version | 2.11 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.11** — JWT verify/re-sign path added to the encoding module. `operations.ts` gains async `jwtVerify`/`jwtHmacResign` and `JwtParts`/`JwtVerdict`. JWT no longer routes through `TextTransformPanel`; `EncodingComponent` renders a bespoke `JwtPanel` when the JWT operation is selected (the panel is one of the documented "doesn't fit the shell" cases in §10.1).
 - **2.10** — §4.3 background-mode invocation extended with auto-open on completion: when a background analysis lands and no Mimir surface is open, the runner writes a TTL'd `modules.analysis.openOnNextPopup` marker and calls `openPopup()`. The popup's dispatcher drains the marker on mount and via `storage.onChanged`, routes to Log Analysis, and surfaces the entry. Surface state is detected via `chrome.runtime.getContexts({ contextTypes: ['POPUP', 'TAB'] })`, feature-detected and conservative when unavailable. New SW helper `src/background/surface-state.ts`. §9 storage namespaces gain `modules.analysis.openOnNextPopup`.
 - **2.9** — §7 standardized: a thin dispatcher (`src/background/ai-client.ts`) plus one `AiAdapter` implementation per provider in `src/background/ai-adapters/<provider>.ts`. The contract lives in `src/background/ai-adapters/types.ts`; the registry index is at `src/background/ai-adapters/index.ts`. Adding a new provider = create one file, add one entry to the registry. No user-visible behavior change.
 - **2.8** — §7 adds AI You adapter: dual-auth (X-API-KEY / Bearer), SSE buffered internally with `tool_execution` events filtered out, hardcoded three-model list and `tools: [163]` (date) with `executeToolsDirectly: true`. `AiProviderConfig` gains optional `authMode` field used only by AI You. Endpoint URL is user-supplied (no shipped default), same shape as `openai-compatible`.
@@ -381,6 +382,18 @@ interface TextTransformPanelProps {
 ```
 
 Modules that fit this shape become roughly: a `MimirModule` wrapper plus a few transform functions. Modules that don't fit (CTI with its provider results, Log Analysis with streaming markdown, Redaction with its multi-stage diff) keep their own bespoke UI — `TextTransformPanel` is a convenience for the simple cases, not a mandate.
+
+#### 10.1.1 JWT panel (bespoke)
+
+The JWT operation does not use `TextTransformPanel`: verification needs a key
+input, signing is async, output is a structured verdict plus an editable
+three-part token, not a single transformed string. `EncodingComponent`
+detects `operationId === "jwt-decode"` and renders `src/modules/encoding/jwt-panel.tsx`
+instead of the shared shell, reusing the same operation
+`<select>`. Crypto is Web Crypto only (`crypto.subtle`); no key or secret is
+persisted (component state only). EdDSA verification is feature-detected and
+degrades to an `unsupported-alg` verdict on browsers below Chrome 137 /
+Firefox 130, which is below the project's stated support floor.
 
 ## 11. Build & Distribution
 

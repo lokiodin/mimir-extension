@@ -169,7 +169,8 @@ function base64UrlEncodeString(s: string): string {
   return base64UrlEncodeBytes(new TextEncoder().encode(s));
 }
 
-// Used by jwtVerify in Task 2 (needs raw signature bytes for crypto.subtle.verify).
+// Decode a base64url segment to bytes, with a Uint8Array<ArrayBuffer> view
+// that Web Crypto APIs (crypto.subtle.verify, etc.) accept directly.
 function base64UrlToBytes(segment: string): Uint8Array<ArrayBuffer> {
   let normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
   const remainder = normalized.length % 4;
@@ -589,7 +590,6 @@ export async function jwtHmacResign(
   return `${signingInput}.${base64UrlEncodeBytes(sig)}`;
 }
 
-// Signature verification is intentionally deferred to v1.1+ per PRD §7.1.
 export function jwtDecode(input: string): string {
   const parts = input.split(".");
   if (parts.length !== 3) {

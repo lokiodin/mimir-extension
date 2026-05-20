@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   jwtDecodeParts,
   jwtEncodeParts,
@@ -29,6 +29,12 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
   input,
   onInputChange,
 }) => {
+  const baseId = useId();
+  const headerId = `${baseId}-header`;
+  const payloadId = `${baseId}-payload`;
+  const sigId = `${baseId}-signature`;
+  const secretId = `${baseId}-secret`;
+  const verifyKeyId = `${baseId}-verify-key`;
   const [parts, setParts] = useState<JwtParts>({
     header: "",
     payload: "",
@@ -111,8 +117,9 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         </div>
       )}
 
-      <Field label="Header (JSON)">
+      <Field label="Header (JSON)" htmlFor={headerId}>
         <textarea
+          id={headerId}
           value={parts.header}
           onChange={(e) => setParts({ ...parts, header: e.target.value })}
           spellCheck={false}
@@ -120,8 +127,9 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         />
       </Field>
 
-      <Field label="Payload (JSON)">
+      <Field label="Payload (JSON)" htmlFor={payloadId}>
         <textarea
+          id={payloadId}
           value={parts.payload}
           onChange={(e) => setParts({ ...parts, payload: e.target.value })}
           spellCheck={false}
@@ -130,6 +138,7 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
       </Field>
 
       <Field
+        htmlFor={sigId}
         label={
           secret !== ""
             ? "Signature (computed — clear secret to edit)"
@@ -137,6 +146,7 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         }
       >
         <textarea
+          id={sigId}
           value={parts.signature}
           onChange={(e) =>
             setParts({ ...parts, signature: e.target.value })
@@ -147,8 +157,9 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         />
       </Field>
 
-      <Field label="Re-sign HMAC secret (optional — empty keeps signature as-is)">
+      <Field label="Re-sign HMAC secret (optional — empty keeps signature as-is)" htmlFor={secretId}>
         <input
+          id={secretId}
           type="password"
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
@@ -184,8 +195,9 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
         )}
       </div>
 
-      <Field label="Verification key (secret / PEM / JWK / JWKS)">
+      <Field label="Verification key (secret / PEM / JWK / JWKS)" htmlFor={verifyKeyId}>
         <textarea
+          id={verifyKeyId}
           value={verifyKey}
           onChange={(e) => setVerifyKey(e.target.value)}
           spellCheck={false}
@@ -236,12 +248,15 @@ export const JwtPanel: React.FC<JwtPanelProps> = ({
   );
 };
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({
+const Field: React.FC<{ label: string; htmlFor: string; children: React.ReactNode }> = ({
   label,
+  htmlFor,
   children,
 }) => (
   <div className="flex flex-col gap-1">
-    <span className="text-xs text-gray-400">{label}</span>
+    <label htmlFor={htmlFor} className="text-xs text-gray-400">
+      {label}
+    </label>
     <div className="relative flex">{children}</div>
   </div>
 );
