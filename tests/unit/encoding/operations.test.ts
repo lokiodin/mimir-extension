@@ -388,3 +388,170 @@ function base64urlJson(obj: unknown): string {
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 }
+
+describe("jwtVerify asymmetric", () => {
+  function b64url(bytes: ArrayBuffer): string {
+    let s = "";
+    const u = new Uint8Array(bytes);
+    for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlStr(str: string): string {
+    return btoa(str)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  }
+  async function spkiPem(pub: CryptoKey): Promise<string> {
+    const spki = await crypto.subtle.exportKey("spki", pub);
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(spki)));
+    const lines = b64.match(/.{1,64}/g)?.join("\n") ?? b64;
+    return `-----BEGIN PUBLIC KEY-----\n${lines}\n-----END PUBLIC KEY-----`;
+  }
+  async function makeToken(
+    alg: string,
+    importAlg: EcKeyGenParams | RsaHashedKeyGenParams,
+    signAlg: AlgorithmIdentifier | RsaPssParams | EcdsaParams,
+  ): Promise<{ token: string; pub: CryptoKey }> {
+    const kp = (await crypto.subtle.generateKey(importAlg, true, [
+      "sign",
+      "verify",
+    ])) as CryptoKeyPair;
+    const header = b64urlStr(JSON.stringify({ alg }));
+    const payload = b64urlStr(JSON.stringify({ sub: "x" }));
+    const sig = await crypto.subtle.sign(
+      signAlg,
+      kp.privateKey,
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+    return { token: `${header}.${payload}.${b64url(sig)}`, pub: kp.publicKey };
+  }
+
+  it("verifies RS256 via PEM SPKI", async () => {
+    const { token, pub } = await makeToken(
+      "RS256",
+      { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      "RSASSA-PKCS1-v1_5",
+    );
+    const v = await jwtVerify(token, await spkiPem(pub));
+    expect(v.signature).toBe("valid");
+  });
+
+  it("verifies ES256 via JWK", async () => {
+    const { token, pub } = await makeToken(
+      "ES256",
+      { name: "ECDSA", namedCurve: "P-256" },
+      { name: "ECDSA", hash: "SHA-256" },
+    );
+    const jwk = await crypto.subtle.exportKey("jwk", pub);
+    const v = await jwtVerify(token, JSON.stringify(jwk));
+    expect(v.signature).toBe("valid");
+  });
+
+  it("verifies PS256 and rejects a tampered payload", async () => {
+    const { token, pub } = await makeToken(
+      "PS256",
+      { name: "RSA-PSS", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      { name: "RSA-PSS", saltLength: 32 },
+    );
+    expect((await jwtVerify(token, await spkiPem(pub))).signature).toBe("valid");
+    const bad = token.replace(/\.[^.]+$/, ".AAAA");
+    expect((await jwtVerify(bad, await spkiPem(pub))).signature).toBe("invalid");
+  });
+
+  it("selects the JWKS key by header kid", async () => {
+    const { token, pub } = await makeToken(
+      "ES256",
+      { name: "ECDSA", namedCurve: "P-256" },
+      { name: "ECDSA", hash: "SHA-256" },
+    );
+    // Re-issue token with a kid in the header.
+    const [, payloadSeg] = token.split(".");
+    const header = b64urlStr(JSON.stringify({ alg: "ES256", kid: "k2" }));
+    const kp2 = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const sig = await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      kp2.privateKey,
+      new TextEncoder().encode(`${header}.${payloadSeg}`),
+    );
+    const signed = `${header}.${payloadSeg}.${b64url(sig)}`;
+    const jwk1 = { ...(await crypto.subtle.exportKey("jwk", pub)), kid: "k1" };
+    const jwk2 = {
+      ...(await crypto.subtle.exportKey("jwk", kp2.publicKey)),
+      kid: "k2",
+    };
+    const v = await jwtVerify(signed, JSON.stringify({ keys: [jwk1, jwk2] }));
+    expect(v.signature).toBe("valid");
+  });
+
+  it("errors when no JWKS key matches the kid", async () => {
+    // Token's header carries kid: "missing"; JWKS has 2 keys with DIFFERENT
+    // kids, so the single-key fallback is disabled and the error branch fires.
+    const kp = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const header = b64urlStr(JSON.stringify({ alg: "ES256", kid: "missing" }));
+    const payload = b64urlStr(JSON.stringify({ sub: "x" }));
+    const sig = await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      kp.privateKey,
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+    const token = `${header}.${payload}.${b64url(sig)}`;
+    const otherA = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const otherB = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwkA = {
+      ...(await crypto.subtle.exportKey("jwk", otherA.publicKey)),
+      kid: "a",
+    };
+    const jwkB = {
+      ...(await crypto.subtle.exportKey("jwk", otherB.publicKey)),
+      kid: "b",
+    };
+    const v = await jwtVerify(
+      token,
+      JSON.stringify({ keys: [jwkA, jwkB] }),
+    );
+    expect(v.signature).toBe("error");
+    expect(v.detail).toMatch(/No matching key in JWKS for kid 'missing'/);
+  });
+
+  it("verifies ES384 via PEM SPKI", async () => {
+    const { token, pub } = await makeToken(
+      "ES384",
+      { name: "ECDSA", namedCurve: "P-384" },
+      { name: "ECDSA", hash: "SHA-384" },
+    );
+    const v = await jwtVerify(token, await spkiPem(pub));
+    expect(v.signature).toBe("valid");
+  });
+
+  it("warns when an asymmetric alg gets a raw-secret-shaped key", async () => {
+    // Token signed with RS256 but verifier supplied a non-PEM/non-JSON
+    // string. Verification will fail at importKey (caught -> error envelope),
+    // but the warning must be emitted before importKey is called.
+    const { token } = await makeToken(
+      "RS256",
+      { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      "RSASSA-PKCS1-v1_5",
+    );
+    const v = await jwtVerify(token, "definitely-a-raw-secret");
+    expect(v.warnings.join(" ")).toMatch(
+      /Expected a public key \(PEM\/JWK\/JWKS\) for RS256; got a raw secret\./,
+    );
+  });
+});

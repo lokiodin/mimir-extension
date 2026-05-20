@@ -270,6 +270,19 @@ export interface JwtVerdict {
   detail?: string;
 }
 
+function pemToBytes(pem: string): Uint8Array<ArrayBuffer> {
+  const body = pem
+    .replace(/-----BEGIN [^-]+-----/, "")
+    .replace(/-----END [^-]+-----/, "")
+    .replace(/\s+/g, "");
+  return new Uint8Array(binaryStringToBytes(atob(body))) as Uint8Array<ArrayBuffer>;
+}
+
+interface AsymParams {
+  importParams: RsaHashedImportParams | EcKeyImportParams | Algorithm;
+  verifyParams: AlgorithmIdentifier | RsaPssParams | EcdsaParams;
+}
+
 function hashForAlg(alg: string): "SHA-256" | "SHA-384" | "SHA-512" {
   if (alg.endsWith("256")) return "SHA-256";
   if (alg.endsWith("384")) return "SHA-384";
@@ -288,18 +301,93 @@ function computeTemporal(payload: unknown): JwtVerdict["temporal"] {
   return t;
 }
 
+function asymParamsForAlg(alg: string): AsymParams {
+  if (alg.startsWith("RS")) {
+    const hash = hashForAlg(alg);
+    return {
+      importParams: { name: "RSASSA-PKCS1-v1_5", hash },
+      verifyParams: "RSASSA-PKCS1-v1_5",
+    };
+  }
+  if (alg.startsWith("PS")) {
+    const hash = hashForAlg(alg);
+    const saltLength = hash === "SHA-256" ? 32 : hash === "SHA-384" ? 48 : 64;
+    return {
+      importParams: { name: "RSA-PSS", hash },
+      verifyParams: { name: "RSA-PSS", saltLength },
+    };
+  }
+  if (alg.startsWith("ES")) {
+    const namedCurve =
+      alg === "ES256" ? "P-256" : alg === "ES384" ? "P-384" : "P-521";
+    const hash =
+      alg === "ES256" ? "SHA-256" : alg === "ES384" ? "SHA-384" : "SHA-512";
+    return {
+      importParams: { name: "ECDSA", namedCurve },
+      verifyParams: { name: "ECDSA", hash },
+    };
+  }
+  throw new Error(`Unsupported alg: ${alg}`);
+}
+
+async function importAsymKey(
+  key: string,
+  headerKid: string | undefined,
+  params: AsymParams,
+): Promise<CryptoKey> {
+  const trimmed = key.trim();
+  if (trimmed.startsWith("-----BEGIN")) {
+    return crypto.subtle.importKey(
+      "spki",
+      pemToBytes(trimmed),
+      params.importParams,
+      false,
+      ["verify"],
+    );
+  }
+  const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+  if (Array.isArray(parsed.keys)) {
+    const keys = parsed.keys as Array<Record<string, unknown>>;
+    let chosen: Record<string, unknown> | undefined;
+    if (headerKid) chosen = keys.find((k) => k.kid === headerKid);
+    if (!chosen && keys.length === 1) chosen = keys[0];
+    if (!chosen) {
+      throw new Error(
+        `No matching key in JWKS for kid '${headerKid ?? "(none)"}'.`,
+      );
+    }
+    return crypto.subtle.importKey(
+      "jwk",
+      chosen as JsonWebKey,
+      params.importParams,
+      false,
+      ["verify"],
+    );
+  }
+  return crypto.subtle.importKey(
+    "jwk",
+    parsed as JsonWebKey,
+    params.importParams,
+    false,
+    ["verify"],
+  );
+}
+
 export async function jwtVerify(
   token: string,
   key: string,
 ): Promise<JwtVerdict> {
+  const warnings: string[] = [];
+  let alg = "";
+  let temporal: JwtVerdict["temporal"] = {};
   try {
     const parts = token.split(".");
     if (parts.length !== 3) {
       return {
         signature: "error",
-        alg: "",
-        temporal: {},
-        warnings: [],
+        alg,
+        temporal,
+        warnings,
         detail: `JWT must have 3 parts (got ${parts.length})`,
       };
     }
@@ -309,21 +397,14 @@ export async function jwtVerify(
       unknown
     >;
     const payload = JSON.parse(base64UrlDecodeToString(payloadSeg));
-    const alg = typeof header.alg === "string" ? header.alg : "";
-    const temporal = computeTemporal(payload);
+    alg = typeof header.alg === "string" ? header.alg : "";
+    temporal = computeTemporal(payload);
 
     if (alg.toLowerCase() === "none") {
-      return {
-        signature: "unsigned",
-        alg,
-        temporal,
-        warnings: [
-          "Token is unsigned (alg: none) — signature not verified.",
-        ],
-      };
+      warnings.push("Token is unsigned (alg: none) — signature not verified.");
+      return { signature: "unsigned", alg, temporal, warnings };
     }
 
-    const warnings: string[] = [];
     // Heuristic: treats any {-prefixed string as a JWK/JWKS; a JSON-shaped
     // HMAC secret would trigger a false-positive warning — acceptable per spec §3.4.
     const looksAsymmetricKey =
@@ -348,12 +429,30 @@ export async function jwtVerify(
         base64UrlToBytes(sigSeg),
         new TextEncoder().encode(`${headerSeg}.${payloadSeg}`),
       );
-      return {
-        signature: ok ? "valid" : "invalid",
-        alg,
-        temporal,
-        warnings,
-      };
+      return { signature: ok ? "valid" : "invalid", alg, temporal, warnings };
+    }
+
+    if (
+      alg.startsWith("RS") ||
+      alg.startsWith("PS") ||
+      alg.startsWith("ES")
+    ) {
+      if (!looksAsymmetricKey) {
+        warnings.push(
+          `Expected a public key (PEM/JWK/JWKS) for ${alg}; got a raw secret.`,
+        );
+      }
+      const kid =
+        typeof header.kid === "string" ? header.kid : undefined;
+      const params = asymParamsForAlg(alg);
+      const cryptoKey = await importAsymKey(key, kid, params);
+      const ok = await crypto.subtle.verify(
+        params.verifyParams,
+        cryptoKey,
+        base64UrlToBytes(sigSeg),
+        new TextEncoder().encode(`${headerSeg}.${payloadSeg}`),
+      );
+      return { signature: ok ? "valid" : "invalid", alg, temporal, warnings };
     }
 
     return {
@@ -366,9 +465,9 @@ export async function jwtVerify(
   } catch (e) {
     return {
       signature: "error",
-      alg: "",
-      temporal: {},
-      warnings: [],
+      alg,
+      temporal,
+      warnings,
       detail: e instanceof Error ? e.message : String(e),
     };
   }
