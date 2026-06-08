@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { MarkdownView } from "@/components/MarkdownView";
 import { CopyIconButton } from "@/components/CopyIconButton";
@@ -158,6 +158,24 @@ export const AnalysisComponent: React.FC = () => {
       setPendingAnalysisOpen(null);
     })();
   }, [pendingAnalysisOpen, setPendingAnalysisOpen]);
+
+  // Auto-restore the newest history entry on open, as if its row had been
+  // clicked. Fires once per mount (the component remounts each time the module
+  // is opened). Defers to the background-completion routing path, which owns
+  // entry selection: skip if a marker is already staged, and re-check after the
+  // async history read in case one arrived meanwhile.
+  const didAutoLoad = useRef(false);
+  useEffect(() => {
+    if (didAutoLoad.current) return;
+    didAutoLoad.current = true;
+    if (pendingAnalysisOpen) return;
+    void (async () => {
+      const history = await getAnalysisHistory();
+      if (history.length === 0) return;
+      if (useMimirStore.getState().pendingAnalysisOpen) return;
+      handleHistorySelect(history[0]);
+    })();
+  }, []);
 
   const noProviders = useMemo(
     () => !!settings && settings.aiProviders.length === 0,
