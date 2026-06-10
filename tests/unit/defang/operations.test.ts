@@ -188,3 +188,25 @@ describe("empty and no-match input", () => {
   });
 });
 
+describe("refang liberal scheme + colon variants", () => {
+  it("refangs a munged scheme with a real colon (hxxp://)", () => {
+    expect(refangAll("hxxp://evil[.]com")).toBe("http://evil.com");
+  });
+
+  it("refangs the [:]// colon-defang variant and uppercase x", () => {
+    expect(refangAll("hXXps[:]//evil[.]com")).toBe("https://evil.com");
+  });
+
+  it("refangs an all-caps scheme with [://]", () => {
+    expect(refangAll("HXXP[://]bad[.]org/x")).toBe("http://bad.org/x");
+  });
+
+  it("does not touch a real (non-defanged) URL", () => {
+    expect(refangAll("https://evil.com")).toBe("https://evil.com");
+  });
+
+  it("still refangs the canonical form", () => {
+    expect(refangAll("hxxps[://]evil[.]com")).toBe("https://evil.com");
+  });
+});
+

@@ -8,7 +8,11 @@
 // `://` and the first `/`, `?`, or `#`) is the only place we replace dots —
 // paths and query strings keep their literal dots.
 const URL_RE = /\bhttps?:\/\/[^\s<>"'`]+/gi;
-const REFANG_URL_RE = /\bhxxps?\[:\/\/\][^\s<>"'`]+/gi;
+// Liberal: munged scheme hxxp/hxxps (any case via the i flag) followed by any
+// of [://] (canonical), [:]// , or a real ://. Colon-defang recognition is
+// scoped to the scheme so a bare [:] in log text (key[:]value) is left alone.
+const REFANG_URL_RE =
+  /\bhxxps?(?:\[:\/\/\]|\[:\]\/\/|:\/\/)[^\s<>"'`]+/gi;
 
 // IPv4: four 1-3 digit octets separated by `.`. Surrounded by non-digit /
 // non-dot context so a 5-octet sequence (`1.2.3.4.5`) and version-string
@@ -90,9 +94,9 @@ function defangUrlMatch(match: string): string {
 }
 
 function refangUrlMatch(match: string): string {
-  const lower = match.toLowerCase();
-  const isHttps = lower.startsWith("hxxps[://]");
-  const schemeLen = isHttps ? "hxxps[://]".length : "hxxp[://]".length;
+  const isHttps = /^hxxps/i.test(match);
+  const sep = /^hxxps?(\[:\/\/\]|\[:\]\/\/|:\/\/)/i.exec(match)?.[1] ?? "[://]";
+  const schemeLen = "hxx".length + (isHttps ? 2 : 1) + sep.length;
   const refangedScheme = isHttps ? "https://" : "http://";
   const rest = match.slice(schemeLen);
   const hostEnd = rest.search(HOST_END_RE);
