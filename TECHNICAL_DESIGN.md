@@ -437,7 +437,7 @@ Distribution: GitHub releases with the unpacked builds and zips. Manual install 
 │   │   ├── analysis/            # Log analysis
 │   │   ├── redaction/
 │   │   ├── settings/            # Settings module
-│   │   └── payloads/
+│   │   └── payloads/            # data/*.json: xss, sqli, cmdi, lfi, ssrf
 │   ├── redaction/
 │   │   ├── detectors/           # One file per detector
 │   │   ├── pipeline.ts
