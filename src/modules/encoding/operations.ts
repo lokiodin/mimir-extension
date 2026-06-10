@@ -9,7 +9,9 @@ export type OperationId =
   | "html-decode"
   | "jwt-decode"
   | "base32-encode"
-  | "base32-decode";
+  | "base32-decode"
+  | "unicode-escape-encode"
+  | "unicode-escape-decode";
 
 export interface Operation {
   id: OperationId;
@@ -125,6 +127,37 @@ export function base32Decode(input: string): string {
     }
   }
   return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+// Escapes every UTF-16 code unit to \uXXXX (astral chars become a surrogate
+// pair of two escapes). Encoding all characters keeps the operation total and
+// fully reversible; the decode direction is the deobfuscation use case.
+export function unicodeEscapeEncode(input: string): string {
+  let out = "";
+  for (let i = 0; i < input.length; i++) {
+    out += "\\u" + input.charCodeAt(i).toString(16).padStart(4, "0");
+  }
+  return out;
+}
+
+// Decodes both \uXXXX (UTF-16 units — adjacent surrogate halves recombine via
+// fromCharCode) and \u{XXXXX} (code point via fromCodePoint). Non-escape text
+// passes through unchanged so partial decode still aids triage.
+export function unicodeEscapeDecode(input: string): string {
+  return input.replace(
+    /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})/g,
+    (match, brace: string | undefined, quad: string | undefined) => {
+      const code = parseInt(brace ?? (quad as string), 16);
+      if (code > 0x10ffff) return match;
+      try {
+        return brace !== undefined
+          ? String.fromCodePoint(code)
+          : String.fromCharCode(code);
+      } catch {
+        return match;
+      }
+    },
+  );
 }
 
 export function urlEncode(input: string): string {
@@ -692,4 +725,6 @@ export const OPERATIONS: ReadonlyArray<Operation> = [
   { id: "jwt-decode", label: "JWT decode", group: "JWT", fn: jwtDecode },
   { id: "base32-encode", label: "Base32 encode", group: "Base32", fn: base32Encode },
   { id: "base32-decode", label: "Base32 decode", group: "Base32", fn: base32Decode },
+  { id: "unicode-escape-encode", label: "Unicode escape encode", group: "Unicode", fn: unicodeEscapeEncode },
+  { id: "unicode-escape-decode", label: "Unicode escape decode", group: "Unicode", fn: unicodeEscapeDecode },
 ];

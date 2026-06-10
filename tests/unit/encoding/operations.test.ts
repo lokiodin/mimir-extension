@@ -15,6 +15,8 @@ import {
   jwtHmacResign,
   jwtVerify,
   OPERATIONS,
+  unicodeEscapeDecode,
+  unicodeEscapeEncode,
   urlDecode,
   urlEncode,
 } from "../../../src/modules/encoding/operations";
@@ -315,7 +317,7 @@ describe("jwt parts", () => {
 });
 
 describe("OPERATIONS registry", () => {
-  it("lists all eleven operations", () => {
+  it("lists all thirteen operations", () => {
     const ids = OPERATIONS.map((o) => o.id);
     expect(ids).toEqual([
       "base64-encode",
@@ -329,12 +331,14 @@ describe("OPERATIONS registry", () => {
       "jwt-decode",
       "base32-encode",
       "base32-decode",
+      "unicode-escape-encode",
+      "unicode-escape-decode",
     ]);
   });
 
-  it("groups every operation under one of the six known groups", () => {
+  it("groups every operation under one of the seven known groups", () => {
     const groups = new Set(OPERATIONS.map((o) => o.group));
-    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32"]));
+    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32", "Unicode"]));
   });
 });
 
@@ -710,6 +714,37 @@ describe("base32", () => {
     fc.assert(
       fc.property(validText, (s) => {
         expect(base32Decode(base32Encode(s))).toBe(s);
+      }),
+    );
+  });
+});
+
+describe("unicode escape", () => {
+  it("encodes every character as \\uXXXX (lowercase hex)", () => {
+    expect(unicodeEscapeEncode("AB")).toBe("\\u0041\\u0042");
+  });
+
+  it("encodes astral characters as a surrogate pair", () => {
+    expect(unicodeEscapeEncode("\u{1f600}")).toBe("\\ud83d\\ude00");
+  });
+
+  it("decodes \\uXXXX including surrogate pairs", () => {
+    expect(unicodeEscapeDecode("\\u0041\\u0042")).toBe("AB");
+    expect(unicodeEscapeDecode("\\ud83d\\ude00")).toBe("\u{1f600}");
+  });
+
+  it("decodes the \\u{...} form", () => {
+    expect(unicodeEscapeDecode("\\u{1f600}")).toBe("\u{1f600}");
+  });
+
+  it("passes non-escape text through unchanged", () => {
+    expect(unicodeEscapeDecode("hi \\u0041 x")).toBe("hi A x");
+  });
+
+  it("round-trips arbitrary text", () => {
+    fc.assert(
+      fc.property(fc.string(), (s) => {
+        expect(unicodeEscapeDecode(unicodeEscapeEncode(s))).toBe(s);
       }),
     );
   });
