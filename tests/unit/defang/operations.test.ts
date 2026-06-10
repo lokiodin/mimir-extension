@@ -210,3 +210,25 @@ describe("refang liberal scheme + colon variants", () => {
   });
 });
 
+describe("defang/refang email", () => {
+  it("defangs an email (@ -> [at], domain dots -> [.], local part literal)", () => {
+    expect(defangAll("john.doe@mail.example.com")).toBe(
+      "john.doe[at]mail[.]example[.]com",
+    );
+  });
+
+  it("refangs a defanged email", () => {
+    expect(refangAll("john.doe[at]mail[.]example[.]com")).toBe(
+      "john.doe@mail.example.com",
+    );
+  });
+
+  it("refangs the (at) variant", () => {
+    expect(refangAll("user(at)example[.]com")).toBe("user@example.com");
+  });
+
+  it("round-trips defang then refang", () => {
+    expect(refangAll(defangAll("a.b@c.example.org"))).toBe("a.b@c.example.org");
+  });
+});
+

@@ -37,6 +37,15 @@ const REFANG_DOMAIN_RE =
 
 const HOST_END_RE = /[/?#]/;
 
+// Email: defang the @ and the domain dots; the local part is left literal so
+// the address round-trips. Claimed before the bare-domain rule.
+const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}\b/g;
+// Refang needs a dedicated whole-address rule: the generic domain-refang
+// lookbehind excludes a preceding ']', so it would skip the domain right after
+// [at]. This rule restores both [at]/(at) -> @ and [.] -> . in one claim.
+const REFANG_EMAIL_RE =
+  /\b[A-Za-z0-9._%+-]+(?:\[at\]|\(at\))(?:[A-Za-z0-9-]+\[\.\])+[A-Za-z]{2,63}\b/gi;
+
 interface Rule {
   re: RegExp;
   // Return `null` to signal "no change — let later rules try this span."
@@ -105,6 +114,17 @@ function refangUrlMatch(match: string): string {
   return refangedScheme + host.replace(/\[\.\]/g, ".") + tail;
 }
 
+function defangEmail(match: string): string {
+  const at = match.indexOf("@");
+  const local = match.slice(0, at);
+  const domain = match.slice(at + 1);
+  return local + "[at]" + domain.replace(/\./g, "[.]");
+}
+
+function refangEmail(match: string): string {
+  return match.replace(/\[at\]|\(at\)/gi, "@").replace(/\[\.\]/g, ".");
+}
+
 function isOctet(s: string): boolean {
   const n = Number(s);
   return Number.isInteger(n) && n >= 0 && n <= 255;
@@ -112,6 +132,7 @@ function isOctet(s: string): boolean {
 
 const DEFANG_RULES: ReadonlyArray<Rule> = [
   { re: URL_RE, transform: (match) => defangUrlMatch(match) },
+  { re: EMAIL_RE, transform: (match) => defangEmail(match) },
   {
     re: IP_RE,
     transform: (_match, a: string, b: string, c: string, d: string) => {
@@ -124,6 +145,7 @@ const DEFANG_RULES: ReadonlyArray<Rule> = [
 
 const REFANG_RULES: ReadonlyArray<Rule> = [
   { re: REFANG_URL_RE, transform: (match) => refangUrlMatch(match) },
+  { re: REFANG_EMAIL_RE, transform: (match) => refangEmail(match) },
   {
     re: REFANG_IP_RE,
     transform: (_match, a: string, b: string, c: string, d: string) =>
