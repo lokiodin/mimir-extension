@@ -8,11 +8,12 @@
 | Audience | Cybersecurity Professionals — Red Team & Blue Team |
 | Distribution | Open-source; primarily build-and-install-it-yourself |
 | License | MIT |
-| Document Version | 4.1 |
+| Document Version | 4.2 |
 | Status | Approved scope for MVP |
 | Companion Doc | `TECHNICAL_DESIGN.md` |
 
 ### Changelog
+- **4.2** — Transform: Encoding adds Base32, Unicode-escape, and decimal char-code operations; Defang adds email and IPv6 targets and recognizes more refang dialects (munged scheme, [:]// and :// colon variants). PRD F-TRANSFORM. Document Version → 4.2.
 - **4.1** — Payload Library gains three categories — LFI, SSRF, and command injection (v1.1 expansion). PRD F-PAY. Document Version → 4.1.
 - **4.0** — JWT gains signature verification (HS/RS/PS/ES/EdDSA), temporal-claim status, and an edit/re-encode/HMAC-re-sign workbench (alg:none + RS→HS attack support). PRD F-TRANSFORM. Document Version → 4.0.
 - **3.9** — Log Analysis: when a background-mode (right-click) analysis completes and no Mimir surface is open, the popup auto-opens and routes directly to the completed analysis. Best-effort — `action.openPopup()` may be refused by the browser, in which case the badge and history continue to surface the result and the next manual popup open routes to the analysis. F-LOG-7.
@@ -88,7 +89,7 @@ There is no primary persona ranking. Modules are surfaced equally; users enable 
 
 | ID | Module | Notes |
 |---|---|---|
-| F-TRANSFORM | Transform | Single module covering all text-in / text-out conversions. Operations: Base64 (encode/decode), Hex (encode/decode), URL (encode/decode), HTML entities (encode/decode), JWT (decode; signature verification for HS/RS/PS/ES/EdDSA via secret/PEM/JWK/JWKS; editable header/payload/signature with live re-encode and HMAC re-sign — supports alg:none and RS→HS confusion testing), Defang/Refang for URLs, IPs, and domains. Encoding operations: user picks from a dropdown. Defang: two synchronized panes (Fanged ↔ Defanged) — typing in either pane updates the other live, no operation selector. Bulk input supported throughout. |
+| F-TRANSFORM | Transform | Single module covering all text-in / text-out conversions. Operations: Base64 (encode/decode), Hex (encode/decode), URL (encode/decode), HTML entities (encode/decode), Base32 (encode/decode), Unicode escape (encode/decode), Decimal char codes (encode/decode), JWT (decode; signature verification for HS/RS/PS/ES/EdDSA via secret/PEM/JWK/JWKS; editable header/payload/signature with live re-encode and HMAC re-sign — supports alg:none and RS→HS confusion testing), Defang/Refang for URLs, IPs (v4 and v6), domains, and email addresses; refang recognizes multiple defang dialects (canonical [://], [:]//, ://, and munged hxxp/hXXp schemes). Encoding operations: user picks from a dropdown. Defang: two synchronized panes (Fanged ↔ Defanged) — typing in either pane updates the other live, no operation selector. Bulk input supported throughout. |
 | F-CTI | CTI Lookups | VirusTotal, AbuseIPDB, hunting.abuse.ch (web-request **and** API modes) |
 | F-PAY | Payload Library | Offline. Ships with curated default sets: **XSS, SQLi, LFI, SSRF, and command injection**. Further categories added in later versions. |
 | F-LOG | Log Analysis | Sends user-selected log content to the configured AI; renders Markdown + Mermaid response |
