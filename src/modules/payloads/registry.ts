@@ -3,10 +3,12 @@ import xssData from "./data/xss.json";
 import sqliData from "./data/sqli.json";
 import cmdiData from "./data/cmdi.json";
 import lfiData from "./data/lfi.json";
+import ssrfData from "./data/ssrf.json";
 
 export const CATEGORIES: ReadonlyArray<PayloadCategoryFile> = [
   xssData as PayloadCategoryFile,
   sqliData as PayloadCategoryFile,
   cmdiData as PayloadCategoryFile,
   lfiData as PayloadCategoryFile,
+  ssrfData as PayloadCategoryFile,
 ];
