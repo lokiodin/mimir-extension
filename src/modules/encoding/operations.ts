@@ -7,7 +7,9 @@ export type OperationId =
   | "url-decode"
   | "html-encode"
   | "html-decode"
-  | "jwt-decode";
+  | "jwt-decode"
+  | "base32-encode"
+  | "base32-decode";
 
 export interface Operation {
   id: OperationId;
@@ -77,6 +79,52 @@ export function hexDecode(input: string): string {
     bytes[i] = parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
   }
   return new TextDecoder().decode(bytes);
+}
+
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+export function base32Encode(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let bits = 0;
+  let value = 0;
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    value = (value << 8) | bytes[i];
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    out += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  while (out.length % 8 !== 0) out += "=";
+  return out;
+}
+
+export function base32Decode(input: string): string {
+  const cleaned = input
+    .replace(/\s+/g, "")
+    .replace(/=+$/, "")
+    .toUpperCase();
+  if (cleaned === "") return "";
+  let bits = 0;
+  let value = 0;
+  const bytes: number[] = [];
+  for (const ch of cleaned) {
+    const idx = BASE32_ALPHABET.indexOf(ch);
+    if (idx === -1) {
+      throw new Error(`Invalid Base32 character: '${ch}'`);
+    }
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes));
 }
 
 export function urlEncode(input: string): string {
@@ -642,4 +690,6 @@ export const OPERATIONS: ReadonlyArray<Operation> = [
   { id: "html-encode", label: "HTML encode", group: "HTML", fn: htmlEncode },
   { id: "html-decode", label: "HTML decode", group: "HTML", fn: htmlDecode },
   { id: "jwt-decode", label: "JWT decode", group: "JWT", fn: jwtDecode },
+  { id: "base32-encode", label: "Base32 encode", group: "Base32", fn: base32Encode },
+  { id: "base32-decode", label: "Base32 decode", group: "Base32", fn: base32Decode },
 ];

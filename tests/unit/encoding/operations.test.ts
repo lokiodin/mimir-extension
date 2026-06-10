@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import fc from "fast-check";
 import {
+  base32Decode,
+  base32Encode,
   base64Decode,
   base64Encode,
   hexDecode,
@@ -312,7 +315,7 @@ describe("jwt parts", () => {
 });
 
 describe("OPERATIONS registry", () => {
-  it("lists all nine operations", () => {
+  it("lists all eleven operations", () => {
     const ids = OPERATIONS.map((o) => o.id);
     expect(ids).toEqual([
       "base64-encode",
@@ -324,12 +327,14 @@ describe("OPERATIONS registry", () => {
       "html-encode",
       "html-decode",
       "jwt-decode",
+      "base32-encode",
+      "base32-decode",
     ]);
   });
 
-  it("groups every operation under one of the five known groups", () => {
+  it("groups every operation under one of the six known groups", () => {
     const groups = new Set(OPERATIONS.map((o) => o.group));
-    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT"]));
+    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32"]));
   });
 });
 
@@ -666,5 +671,46 @@ describe("jwtHmacResign", () => {
     await expect(
       jwtHmacResign("not json", "{}", "k", "HS256"),
     ).rejects.toThrow(/header is not valid JSON/);
+  });
+});
+
+describe("base32", () => {
+  // RFC 4648 §10 test vectors
+  it("encodes the RFC 4648 vectors", () => {
+    expect(base32Encode("")).toBe("");
+    expect(base32Encode("f")).toBe("MY======");
+    expect(base32Encode("fo")).toBe("MZXQ====");
+    expect(base32Encode("foo")).toBe("MZXW6===");
+    expect(base32Encode("foob")).toBe("MZXW6YQ=");
+    expect(base32Encode("fooba")).toBe("MZXW6YTB");
+    expect(base32Encode("foobar")).toBe("MZXW6YTBOI======");
+  });
+
+  it("decodes the RFC 4648 vectors", () => {
+    expect(base32Decode("MZXW6YTBOI======")).toBe("foobar");
+    expect(base32Decode("MY======")).toBe("f");
+  });
+
+  it("decodes case-insensitively and ignores whitespace", () => {
+    expect(base32Decode("mzxw6 ytboi======")).toBe("foobar");
+  });
+
+  it("throws on an invalid Base32 character", () => {
+    expect(() => base32Decode("MZXW1!!!")).toThrow(/Invalid Base32/);
+  });
+
+  it("round-trips arbitrary unicode text", () => {
+    const validText = fc
+      .array(
+        fc
+          .integer({ min: 0, max: 0x10ffff })
+          .filter((c) => c < 0xd800 || c > 0xdfff),
+      )
+      .map((arr) => String.fromCodePoint(...arr));
+    fc.assert(
+      fc.property(validText, (s) => {
+        expect(base32Decode(base32Encode(s))).toBe(s);
+      }),
+    );
   });
 });
