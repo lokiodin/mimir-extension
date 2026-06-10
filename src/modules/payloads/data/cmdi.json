@@ -34,7 +34,7 @@
       "id": "background-amp",
       "label": "Background/chain ampersand",
       "payload": "& id",
-      "notes": "Single ampersand chains a command on both cmd.exe and Unix shells.",
+      "notes": "On cmd.exe a single ampersand chains unconditionally; on Unix it backgrounds the first command so both still run — handy for blind injection where the original must not block.",
       "tags": ["separator", "windows", "linux"]
     },
     {
