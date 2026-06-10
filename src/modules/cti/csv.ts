@@ -18,10 +18,16 @@ const COLUMNS: ReadonlyArray<string> = [
 ];
 
 function escapeCell(value: string): string {
-  if (value.includes('"') || value.includes(",") || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Neutralize CSV/formula injection: a cell beginning with = + - @ (or a
+  // leading tab/CR that lets one become the first glyph) is executed as a
+  // formula by Excel/LibreOffice/Sheets on open. Indicators are attacker-
+  // influenced, so prefix a single quote to force literal text, then apply
+  // RFC-4180 quoting.
+  const cell = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  if (cell.includes('"') || cell.includes(",") || cell.includes("\n")) {
+    return `"${cell.replace(/"/g, '""')}"`;
   }
-  return value;
+  return cell;
 }
 
 function rowFor(entry: CtiHistoryEntry): string[] {
