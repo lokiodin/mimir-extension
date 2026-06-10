@@ -774,6 +774,10 @@ describe("decimal char codes", () => {
     expect(() => decimalDecode("65 zz")).toThrow(/Invalid decimal code/);
   });
 
+  it("throws on an out-of-range code point", () => {
+    expect(() => decimalDecode("1114112")).toThrow(/Code point out of range/);
+  });
+
   it("round-trips arbitrary unicode text", () => {
     const validText = fc
       .array(

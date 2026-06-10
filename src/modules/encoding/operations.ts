@@ -107,6 +107,9 @@ export function base32Encode(input: string): string {
   return out;
 }
 
+// Lenient: trailing padding bits left after the final byte are discarded
+// without checking they are zero (RFC 4648 §3.5 strict mode not required for a
+// triage/deobfuscation tool).
 export function base32Decode(input: string): string {
   const cleaned = input
     .replace(/\s+/g, "")
@@ -149,7 +152,9 @@ export function unicodeEscapeDecode(input: string): string {
   return input.replace(
     /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})/g,
     (match, brace: string | undefined, quad: string | undefined) => {
-      const code = parseInt(brace ?? (quad as string), 16);
+      const hex = brace ?? quad;
+      if (hex === undefined) return match; // unreachable: one group always matches
+      const code = parseInt(hex, 16);
       if (code > 0x10ffff) return match;
       try {
         return brace !== undefined
@@ -163,7 +168,8 @@ export function unicodeEscapeDecode(input: string): string {
 }
 
 export function decimalEncode(input: string): string {
-  return [...input].map((ch) => ch.codePointAt(0)).join(" ");
+  // Each spread element is a whole code point, so codePointAt(0) is defined.
+  return [...input].map((ch) => ch.codePointAt(0)!).join(" ");
 }
 
 export function decimalDecode(input: string): string {
