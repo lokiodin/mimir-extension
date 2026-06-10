@@ -168,8 +168,9 @@ export function unicodeEscapeDecode(input: string): string {
 }
 
 export function decimalEncode(input: string): string {
-  // Each spread element is a whole code point, so codePointAt(0) is defined.
-  return [...input].map((ch) => ch.codePointAt(0)!).join(" ");
+  // Each spread element is a whole code point, so codePointAt(0) is always
+  // defined; the ?? 0 only satisfies the type (lint forbids non-null assertions).
+  return [...input].map((ch) => ch.codePointAt(0) ?? 0).join(" ");
 }
 
 export function decimalDecode(input: string): string {
