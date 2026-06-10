@@ -11,7 +11,9 @@ export type OperationId =
   | "base32-encode"
   | "base32-decode"
   | "unicode-escape-encode"
-  | "unicode-escape-decode";
+  | "unicode-escape-decode"
+  | "decimal-encode"
+  | "decimal-decode";
 
 export interface Operation {
   id: OperationId;
@@ -158,6 +160,26 @@ export function unicodeEscapeDecode(input: string): string {
       }
     },
   );
+}
+
+export function decimalEncode(input: string): string {
+  return [...input].map((ch) => ch.codePointAt(0)).join(" ");
+}
+
+export function decimalDecode(input: string): string {
+  const tokens = input.trim().split(/[\s,]+/).filter(Boolean);
+  if (tokens.length === 0) return "";
+  const codes = tokens.map((tok) => {
+    if (!/^\d+$/.test(tok)) {
+      throw new Error(`Invalid decimal code: '${tok}'`);
+    }
+    const n = Number(tok);
+    if (n > 0x10ffff) {
+      throw new Error(`Code point out of range: ${n}`);
+    }
+    return n;
+  });
+  return String.fromCodePoint(...codes);
 }
 
 export function urlEncode(input: string): string {
@@ -727,4 +749,6 @@ export const OPERATIONS: ReadonlyArray<Operation> = [
   { id: "base32-decode", label: "Base32 decode", group: "Base32", fn: base32Decode },
   { id: "unicode-escape-encode", label: "Unicode escape encode", group: "Unicode", fn: unicodeEscapeEncode },
   { id: "unicode-escape-decode", label: "Unicode escape decode", group: "Unicode", fn: unicodeEscapeDecode },
+  { id: "decimal-encode", label: "Decimal encode", group: "Decimal", fn: decimalEncode },
+  { id: "decimal-decode", label: "Decimal decode", group: "Decimal", fn: decimalDecode },
 ];

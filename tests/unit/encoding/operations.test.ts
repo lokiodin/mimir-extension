@@ -5,6 +5,8 @@ import {
   base32Encode,
   base64Decode,
   base64Encode,
+  decimalDecode,
+  decimalEncode,
   hexDecode,
   hexEncode,
   htmlDecode,
@@ -317,7 +319,7 @@ describe("jwt parts", () => {
 });
 
 describe("OPERATIONS registry", () => {
-  it("lists all thirteen operations", () => {
+  it("lists all fifteen operations", () => {
     const ids = OPERATIONS.map((o) => o.id);
     expect(ids).toEqual([
       "base64-encode",
@@ -333,12 +335,14 @@ describe("OPERATIONS registry", () => {
       "base32-decode",
       "unicode-escape-encode",
       "unicode-escape-decode",
+      "decimal-encode",
+      "decimal-decode",
     ]);
   });
 
-  it("groups every operation under one of the seven known groups", () => {
+  it("groups every operation under one of the eight known groups", () => {
     const groups = new Set(OPERATIONS.map((o) => o.group));
-    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32", "Unicode"]));
+    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32", "Unicode", "Decimal"]));
   });
 });
 
@@ -745,6 +749,42 @@ describe("unicode escape", () => {
     fc.assert(
       fc.property(fc.string(), (s) => {
         expect(unicodeEscapeDecode(unicodeEscapeEncode(s))).toBe(s);
+      }),
+    );
+  });
+});
+
+describe("decimal char codes", () => {
+  it("encodes to space-separated decimal code points", () => {
+    expect(decimalEncode("AB")).toBe("65 66");
+    expect(decimalEncode("\u{1f600}")).toBe("128512");
+  });
+
+  it("decodes space- and comma-separated codes", () => {
+    expect(decimalDecode("65 66")).toBe("AB");
+    expect(decimalDecode("72,73")).toBe("HI");
+    expect(decimalDecode("128512")).toBe("\u{1f600}");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(decimalDecode("")).toBe("");
+  });
+
+  it("throws on a non-numeric token", () => {
+    expect(() => decimalDecode("65 zz")).toThrow(/Invalid decimal code/);
+  });
+
+  it("round-trips arbitrary unicode text", () => {
+    const validText = fc
+      .array(
+        fc
+          .integer({ min: 0, max: 0x10ffff })
+          .filter((c) => c < 0xd800 || c > 0xdfff),
+      )
+      .map((arr) => String.fromCodePoint(...arr));
+    fc.assert(
+      fc.property(validText, (s) => {
+        expect(decimalDecode(decimalEncode(s))).toBe(s);
       }),
     );
   });
