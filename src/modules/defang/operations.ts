@@ -38,7 +38,9 @@ const REFANG_DOMAIN_RE =
 const HOST_END_RE = /[/?#]/;
 
 // Email: defang the @ and the domain dots; the local part is left literal so
-// the address round-trips. Claimed before the bare-domain rule.
+// the address round-trips. Claimed before the bare-domain rule. Single-label
+// domains (user@localhost) are excluded on both sides — consistent with the
+// domain rule's TLD requirement, so such addresses pass through unchanged.
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}\b/g;
 // Refang needs a dedicated whole-address rule: the generic domain-refang
 // lookbehind excludes a preceding ']', so it would skip the domain right after
@@ -49,7 +51,8 @@ const REFANG_EMAIL_RE =
 // IPv6 — conservative: matches only a full 8-group address OR one containing a
 // :: compression. This excludes MAC addresses (6 groups, no ::) and 2-4 group
 // timestamps. Boundary lookarounds (not \b) let a leading :: match. Known
-// residual FPs: an 8-group all-hex colon run that is not actually an address.
+// residual FPs: an 8-group all-hex colon run that is not actually an address;
+// a bare `::` in prose (a valid all-zeros address, but rare as a real IOC).
 const IPV6_RE =
   /(?<![0-9A-Za-z:.\[])(?:(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?::(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)(?![0-9A-Za-z:.\]])/g;
 const REFANG_IPV6_RE =
@@ -113,7 +116,11 @@ function defangUrlMatch(match: string): string {
 
 function refangUrlMatch(match: string): string {
   const isHttps = /^hxxps/i.test(match);
-  const sep = /^hxxps?(\[:\/\/\]|\[:\]\/\/|:\/\/)/i.exec(match)?.[1] ?? "[://]";
+  // match was delivered by REFANG_URL_RE, which requires one of these three
+  // separators — a null here means the two regexes have drifted apart.
+  const sepMatch = /^hxxps?(\[:\/\/\]|\[:\]\/\/|:\/\/)/i.exec(match);
+  if (!sepMatch) throw new Error(`refangUrlMatch: unrecognized separator in '${match}'`);
+  const sep = sepMatch[1];
   const schemeLen = "hxx".length + (isHttps ? 2 : 1) + sep.length;
   const refangedScheme = isHttps ? "https://" : "http://";
   const rest = match.slice(schemeLen);
