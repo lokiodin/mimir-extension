@@ -9,7 +9,7 @@ describe("payload categories registry", () => {
 
   it("ships the current category set", () => {
     const ids = CATEGORIES.map((c) => c.id).sort();
-    expect(ids).toEqual(["cmdi", "sqli", "xss"]);
+    expect(ids).toEqual(["cmdi", "lfi", "sqli", "xss"]);
   });
 
   it("each category has unique id and label across the bundle", () => {
