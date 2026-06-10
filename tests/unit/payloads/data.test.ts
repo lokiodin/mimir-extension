@@ -7,9 +7,9 @@ describe("payload categories registry", () => {
     expect(CATEGORIES.length).toBeGreaterThan(0);
   });
 
-  it("ships the v1 set: XSS and SQLi only", () => {
+  it("ships the current category set", () => {
     const ids = CATEGORIES.map((c) => c.id).sort();
-    expect(ids).toEqual(["sqli", "xss"]);
+    expect(ids).toEqual(["cmdi", "sqli", "xss"]);
   });
 
   it("each category has unique id and label across the bundle", () => {
