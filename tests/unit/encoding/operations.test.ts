@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
+import fc from "fast-check";
 import {
+  base32Decode,
+  base32Encode,
   base64Decode,
   base64Encode,
+  decimalDecode,
+  decimalEncode,
   hexDecode,
   hexEncode,
   htmlDecode,
@@ -12,6 +17,8 @@ import {
   jwtHmacResign,
   jwtVerify,
   OPERATIONS,
+  unicodeEscapeDecode,
+  unicodeEscapeEncode,
   urlDecode,
   urlEncode,
 } from "../../../src/modules/encoding/operations";
@@ -312,7 +319,7 @@ describe("jwt parts", () => {
 });
 
 describe("OPERATIONS registry", () => {
-  it("lists all nine operations", () => {
+  it("lists all fifteen operations", () => {
     const ids = OPERATIONS.map((o) => o.id);
     expect(ids).toEqual([
       "base64-encode",
@@ -324,12 +331,18 @@ describe("OPERATIONS registry", () => {
       "html-encode",
       "html-decode",
       "jwt-decode",
+      "base32-encode",
+      "base32-decode",
+      "unicode-escape-encode",
+      "unicode-escape-decode",
+      "decimal-encode",
+      "decimal-decode",
     ]);
   });
 
-  it("groups every operation under one of the five known groups", () => {
+  it("groups every operation under one of the eight known groups", () => {
     const groups = new Set(OPERATIONS.map((o) => o.group));
-    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT"]));
+    expect(groups).toEqual(new Set(["Base64", "Hex", "URL", "HTML", "JWT", "Base32", "Unicode", "Decimal"]));
   });
 });
 
@@ -666,5 +679,117 @@ describe("jwtHmacResign", () => {
     await expect(
       jwtHmacResign("not json", "{}", "k", "HS256"),
     ).rejects.toThrow(/header is not valid JSON/);
+  });
+});
+
+describe("base32", () => {
+  // RFC 4648 §10 test vectors
+  it("encodes the RFC 4648 vectors", () => {
+    expect(base32Encode("")).toBe("");
+    expect(base32Encode("f")).toBe("MY======");
+    expect(base32Encode("fo")).toBe("MZXQ====");
+    expect(base32Encode("foo")).toBe("MZXW6===");
+    expect(base32Encode("foob")).toBe("MZXW6YQ=");
+    expect(base32Encode("fooba")).toBe("MZXW6YTB");
+    expect(base32Encode("foobar")).toBe("MZXW6YTBOI======");
+  });
+
+  it("decodes the RFC 4648 vectors", () => {
+    expect(base32Decode("MZXW6YTBOI======")).toBe("foobar");
+    expect(base32Decode("MY======")).toBe("f");
+  });
+
+  it("decodes case-insensitively and ignores whitespace", () => {
+    expect(base32Decode("mzxw6 ytboi======")).toBe("foobar");
+  });
+
+  it("throws on an invalid Base32 character", () => {
+    expect(() => base32Decode("MZXW1!!!")).toThrow(/Invalid Base32/);
+  });
+
+  it("round-trips arbitrary unicode text", () => {
+    const validText = fc
+      .array(
+        fc
+          .integer({ min: 0, max: 0x10ffff })
+          .filter((c) => c < 0xd800 || c > 0xdfff),
+      )
+      .map((arr) => String.fromCodePoint(...arr));
+    fc.assert(
+      fc.property(validText, (s) => {
+        expect(base32Decode(base32Encode(s))).toBe(s);
+      }),
+    );
+  });
+});
+
+describe("unicode escape", () => {
+  it("encodes every character as \\uXXXX (lowercase hex)", () => {
+    expect(unicodeEscapeEncode("AB")).toBe("\\u0041\\u0042");
+  });
+
+  it("encodes astral characters as a surrogate pair", () => {
+    expect(unicodeEscapeEncode("\u{1f600}")).toBe("\\ud83d\\ude00");
+  });
+
+  it("decodes \\uXXXX including surrogate pairs", () => {
+    expect(unicodeEscapeDecode("\\u0041\\u0042")).toBe("AB");
+    expect(unicodeEscapeDecode("\\ud83d\\ude00")).toBe("\u{1f600}");
+  });
+
+  it("decodes the \\u{...} form", () => {
+    expect(unicodeEscapeDecode("\\u{1f600}")).toBe("\u{1f600}");
+  });
+
+  it("passes non-escape text through unchanged", () => {
+    expect(unicodeEscapeDecode("hi \\u0041 x")).toBe("hi A x");
+  });
+
+  it("round-trips arbitrary text", () => {
+    fc.assert(
+      fc.property(fc.string(), (s) => {
+        expect(unicodeEscapeDecode(unicodeEscapeEncode(s))).toBe(s);
+      }),
+    );
+  });
+});
+
+describe("decimal char codes", () => {
+  it("encodes to space-separated decimal code points", () => {
+    expect(decimalEncode("AB")).toBe("65 66");
+    expect(decimalEncode("\u{1f600}")).toBe("128512");
+  });
+
+  it("decodes space- and comma-separated codes", () => {
+    expect(decimalDecode("65 66")).toBe("AB");
+    expect(decimalDecode("72,73")).toBe("HI");
+    expect(decimalDecode("128512")).toBe("\u{1f600}");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(decimalDecode("")).toBe("");
+  });
+
+  it("throws on a non-numeric token", () => {
+    expect(() => decimalDecode("65 zz")).toThrow(/Invalid decimal code/);
+  });
+
+  it("throws on an out-of-range code point", () => {
+    expect(() => decimalDecode("1114112")).toThrow(/Code point out of range/);
+  });
+
+  it("round-trips arbitrary unicode text", () => {
+    const validText = fc
+      .array(
+        fc
+          .integer({ min: 0, max: 0x10ffff })
+          .filter((c) => c < 0xd800 || c > 0xdfff),
+      )
+      .map((arr) => String.fromCodePoint(...arr));
+    fc.assert(
+      fc.property(validText, (s) => {
+        expect(decimalDecode(decimalEncode(s))).toBe(s);
+      }),
+    );
   });
 });

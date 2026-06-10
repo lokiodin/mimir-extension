@@ -7,7 +7,13 @@ export type OperationId =
   | "url-decode"
   | "html-encode"
   | "html-decode"
-  | "jwt-decode";
+  | "jwt-decode"
+  | "base32-encode"
+  | "base32-decode"
+  | "unicode-escape-encode"
+  | "unicode-escape-decode"
+  | "decimal-encode"
+  | "decimal-decode";
 
 export interface Operation {
   id: OperationId;
@@ -77,6 +83,110 @@ export function hexDecode(input: string): string {
     bytes[i] = parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
   }
   return new TextDecoder().decode(bytes);
+}
+
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+export function base32Encode(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let bits = 0;
+  let value = 0;
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    value = (value << 8) | bytes[i];
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    out += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  while (out.length % 8 !== 0) out += "=";
+  return out;
+}
+
+// Lenient: trailing padding bits left after the final byte are discarded
+// without checking they are zero (RFC 4648 §3.5 strict mode not required for a
+// triage/deobfuscation tool).
+export function base32Decode(input: string): string {
+  const cleaned = input
+    .replace(/\s+/g, "")
+    .replace(/=+$/, "")
+    .toUpperCase();
+  if (cleaned === "") return "";
+  let bits = 0;
+  let value = 0;
+  const bytes: number[] = [];
+  for (const ch of cleaned) {
+    const idx = BASE32_ALPHABET.indexOf(ch);
+    if (idx === -1) {
+      throw new Error(`Invalid Base32 character: '${ch}'`);
+    }
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+// Escapes every UTF-16 code unit to \uXXXX (astral chars become a surrogate
+// pair of two escapes). Encoding all characters keeps the operation total and
+// fully reversible; the decode direction is the deobfuscation use case.
+export function unicodeEscapeEncode(input: string): string {
+  let out = "";
+  for (let i = 0; i < input.length; i++) {
+    out += "\\u" + input.charCodeAt(i).toString(16).padStart(4, "0");
+  }
+  return out;
+}
+
+// Decodes both \uXXXX (UTF-16 units — adjacent surrogate halves recombine via
+// fromCharCode) and \u{XXXXX} (code point via fromCodePoint). Non-escape text
+// passes through unchanged so partial decode still aids triage.
+export function unicodeEscapeDecode(input: string): string {
+  return input.replace(
+    /\\u\{([0-9a-fA-F]+)\}|\\u([0-9a-fA-F]{4})/g,
+    (match, brace: string | undefined, quad: string | undefined) => {
+      const hex = brace ?? quad;
+      if (hex === undefined) return match; // unreachable: one group always matches
+      const code = parseInt(hex, 16);
+      if (code > 0x10ffff) return match;
+      try {
+        return brace !== undefined
+          ? String.fromCodePoint(code)
+          : String.fromCharCode(code);
+      } catch {
+        return match;
+      }
+    },
+  );
+}
+
+export function decimalEncode(input: string): string {
+  // Each spread element is a whole code point, so codePointAt(0) is always
+  // defined; the ?? 0 only satisfies the type (lint forbids non-null assertions).
+  return [...input].map((ch) => ch.codePointAt(0) ?? 0).join(" ");
+}
+
+export function decimalDecode(input: string): string {
+  const tokens = input.trim().split(/[\s,]+/).filter(Boolean);
+  if (tokens.length === 0) return "";
+  const codes = tokens.map((tok) => {
+    if (!/^\d+$/.test(tok)) {
+      throw new Error(`Invalid decimal code: '${tok}'`);
+    }
+    const n = Number(tok);
+    if (n > 0x10ffff) {
+      throw new Error(`Code point out of range: ${n}`);
+    }
+    return n;
+  });
+  return String.fromCodePoint(...codes);
 }
 
 export function urlEncode(input: string): string {
@@ -642,4 +752,10 @@ export const OPERATIONS: ReadonlyArray<Operation> = [
   { id: "html-encode", label: "HTML encode", group: "HTML", fn: htmlEncode },
   { id: "html-decode", label: "HTML decode", group: "HTML", fn: htmlDecode },
   { id: "jwt-decode", label: "JWT decode", group: "JWT", fn: jwtDecode },
+  { id: "base32-encode", label: "Base32 encode", group: "Base32", fn: base32Encode },
+  { id: "base32-decode", label: "Base32 decode", group: "Base32", fn: base32Decode },
+  { id: "unicode-escape-encode", label: "Unicode escape encode", group: "Unicode", fn: unicodeEscapeEncode },
+  { id: "unicode-escape-decode", label: "Unicode escape decode", group: "Unicode", fn: unicodeEscapeDecode },
+  { id: "decimal-encode", label: "Decimal encode", group: "Decimal", fn: decimalEncode },
+  { id: "decimal-decode", label: "Decimal decode", group: "Decimal", fn: decimalDecode },
 ];

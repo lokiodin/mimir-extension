@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.9 |
-| Document Version | 2.11 |
+| Document Version | 2.12 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.12** — Transform v1.1 operations. `src/modules/encoding/operations.ts` gains Base32, Unicode-escape, and decimal char-code codecs (sync `OPERATIONS` entries rendered via `TextTransformPanel` — no panel change). `src/modules/defang/operations.ts` gains email and IPv6 defang/refang targets and liberal refang for munged-scheme/colon dialects, all as new rules in the existing `scanAndReplace` engine; defang output stays canonical. No interface change.
 - **2.11** — JWT verify/re-sign path added to the encoding module. `operations.ts` gains async `jwtVerify`/`jwtHmacResign` and `JwtParts`/`JwtVerdict`. JWT no longer routes through `TextTransformPanel`; `EncodingComponent` renders a bespoke `JwtPanel` when the JWT operation is selected (the panel is one of the documented "doesn't fit the shell" cases in §10.1).
 - **2.10** — §4.3 background-mode invocation extended with auto-open on completion: when a background analysis lands and no Mimir surface is open, the runner writes a TTL'd `modules.analysis.openOnNextPopup` marker and calls `openPopup()`. The popup's dispatcher drains the marker on mount and via `storage.onChanged`, routes to Log Analysis, and surfaces the entry. Surface state is detected via `chrome.runtime.getContexts({ contextTypes: ['POPUP', 'TAB'] })`, feature-detected and conservative when unavailable. New SW helper `src/background/surface-state.ts`. §9 storage namespaces gain `modules.analysis.openOnNextPopup`.
 - **2.9** — §7 standardized: a thin dispatcher (`src/background/ai-client.ts`) plus one `AiAdapter` implementation per provider in `src/background/ai-adapters/<provider>.ts`. The contract lives in `src/background/ai-adapters/types.ts`; the registry index is at `src/background/ai-adapters/index.ts`. Adding a new provider = create one file, add one entry to the registry. No user-visible behavior change.
