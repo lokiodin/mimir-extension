@@ -46,6 +46,15 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}\b/g;
 const REFANG_EMAIL_RE =
   /\b[A-Za-z0-9._%+-]+(?:\[at\]|\(at\))(?:[A-Za-z0-9-]+\[\.\])+[A-Za-z]{2,63}\b/gi;
 
+// IPv6 — conservative: matches only a full 8-group address OR one containing a
+// :: compression. This excludes MAC addresses (6 groups, no ::) and 2-4 group
+// timestamps. Boundary lookarounds (not \b) let a leading :: match. Known
+// residual FPs: an 8-group all-hex colon run that is not actually an address.
+const IPV6_RE =
+  /(?<![0-9A-Za-z:.\[])(?:(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?::(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)(?![0-9A-Za-z:.\]])/g;
+const REFANG_IPV6_RE =
+  /(?<![0-9A-Za-z\[\]])(?:(?:[0-9A-Fa-f]{1,4}\[:\]){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}(?:\[:\][0-9A-Fa-f]{1,4})*)?\[:\]\[:\](?:[0-9A-Fa-f]{1,4}(?:\[:\][0-9A-Fa-f]{1,4})*)?)(?![0-9A-Za-z\[])/g;
+
 interface Rule {
   re: RegExp;
   // Return `null` to signal "no change — let later rules try this span."
@@ -140,6 +149,7 @@ const DEFANG_RULES: ReadonlyArray<Rule> = [
       return `${a}[.]${b}[.]${c}[.]${d}`;
     },
   },
+  { re: IPV6_RE, transform: (match) => match.replace(/:/g, "[:]") },
   { re: DOMAIN_RE, transform: (match) => match.replace(/\./g, "[.]") },
 ];
 
@@ -151,6 +161,7 @@ const REFANG_RULES: ReadonlyArray<Rule> = [
     transform: (_match, a: string, b: string, c: string, d: string) =>
       `${a}.${b}.${c}.${d}`,
   },
+  { re: REFANG_IPV6_RE, transform: (match) => match.replace(/\[:\]/g, ":") },
   { re: REFANG_DOMAIN_RE, transform: (match) => match.replace(/\[\.\]/g, ".") },
 ];
 

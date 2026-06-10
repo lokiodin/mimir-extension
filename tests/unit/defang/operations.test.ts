@@ -232,3 +232,31 @@ describe("defang/refang email", () => {
   });
 });
 
+describe("defang/refang IPv6", () => {
+  it("defangs a compressed IPv6 address", () => {
+    expect(defangAll("2001:db8::1")).toBe("2001[:]db8[:][:]1");
+  });
+
+  it("defangs a leading-:: address", () => {
+    expect(defangAll("::1")).toBe("[:][:]1");
+  });
+
+  it("defangs a full 8-group address", () => {
+    expect(defangAll("2001:0db8:0000:0000:0000:ff00:0042:8329")).toBe(
+      "2001[:]0db8[:]0000[:]0000[:]0000[:]ff00[:]0042[:]8329",
+    );
+  });
+
+  it("refangs and round-trips", () => {
+    expect(refangAll("2001[:]db8[:][:]1")).toBe("2001:db8::1");
+    expect(refangAll(defangAll("fe80::1"))).toBe("fe80::1");
+  });
+
+  it("does NOT defang timestamps or MAC addresses (false-positive guard)", () => {
+    expect(defangAll("12:34:56")).toBe("12:34:56");
+    expect(defangAll("12:34:56:78")).toBe("12:34:56:78");
+    expect(defangAll("aa:bb:cc:dd:ee:ff")).toBe("aa:bb:cc:dd:ee:ff");
+    expect(defangAll("ratio 3:2 here")).toBe("ratio 3:2 here");
+  });
+});
+
