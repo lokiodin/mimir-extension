@@ -1,7 +1,8 @@
-// Defang/refang for URLs, IPv4 addresses, and standalone domains. v1 scope:
-// the canonical bracketed-dot convention only — `http(s)://` ↔ `hxxp(s)[://]`
-// and `.` ↔ `[.]`. Other defang dialects (`(dot)`, `hXXp`, `[://]` without
-// bracketed scheme letters, `.example[.]com`) are deferred.
+// Defang/refang for URLs, IPv4, IPv6, email addresses, and standalone domains.
+// Defang output is the single canonical bracketed convention (`hxxp(s)[://]`,
+// `[.]`, `[at]`, `[:]`). Refang is liberal: it also recognizes munged-scheme
+// variants (any-case `hxxp`/`hxxps`) and colon-defang (`[:]//` and `://`) in the
+// scheme. Deferred: `(dot)`/`[dot]` and other dot dialects outside the `[.]` form.
 
 // URL match: scheme-prefixed runs, terminated by whitespace or characters
 // that don't appear inside URLs in practice. The host portion (between
