@@ -1,43 +1,40 @@
-// MV3 service worker keepalive via chrome.alarms.
-// See TECHNICAL_DESIGN.md §3 — workers terminate after ~30s idle, so during
-// in-flight outbound calls we hold a periodic alarm to prevent termination.
+// MV3 service worker / event-page keepalive.
+// See TECHNICAL_DESIGN.md §3 — workers terminate after ~30s idle, and a
+// pending fetch does NOT reset the idle timer. Any extension-API call does,
+// so while outbound calls are in flight we ping a trivial API every 20s.
+//
+// chrome.alarms is unsuitable for this: Chrome clamps `periodInMinutes` to
+// a minimum of 0.5 (1.0 before Chrome 120), which fires exactly on — or
+// after — the 30s idle deadline, so the worker can still be reaped between
+// alarms. A plain setInterval inside the worker has no such minimum; it dies
+// with the worker, but so does the in-flight call it protects.
 
-const ALARM_NAME = "mimir-keepalive";
-// Period must be < 30s to keep the worker alive across idle gaps.
-// 0.4 minutes ≈ 24 seconds.
-const KEEPALIVE_PERIOD_MINUTES = 0.4;
+const PING_INTERVAL_MS = 20_000;
 
 let inFlight = 0;
-let listenerInstalled = false;
+let intervalId: ReturnType<typeof setInterval> | undefined;
 
-export function installKeepaliveListener(): void {
-  if (listenerInstalled) return;
-  listenerInstalled = true;
-  // The listener body is intentionally empty — having any registered listener
-  // is what wakes the worker when the alarm fires.
-  chrome.alarms.onAlarm.addListener(() => {});
-}
-
-function startAlarm(): void {
-  void chrome.alarms.create(ALARM_NAME, {
-    periodInMinutes: KEEPALIVE_PERIOD_MINUTES,
-  });
-}
-
-function stopAlarm(): void {
-  void chrome.alarms.clear(ALARM_NAME);
+function ping(): void {
+  // Cheapest no-permission extension API call; the call itself is what
+  // resets the idle timer — the result is discarded.
+  void chrome.runtime.getPlatformInfo();
 }
 
 function acquireKeepalive(): void {
   inFlight += 1;
-  if (inFlight === 1) startAlarm();
+  if (inFlight === 1 && intervalId === undefined) {
+    intervalId = setInterval(ping, PING_INTERVAL_MS);
+  }
 }
 
 function releaseKeepalive(): void {
   inFlight -= 1;
   if (inFlight <= 0) {
     inFlight = 0;
-    stopAlarm();
+    if (intervalId !== undefined) {
+      clearInterval(intervalId);
+      intervalId = undefined;
+    }
   }
 }
 

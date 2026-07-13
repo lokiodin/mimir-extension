@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.9 |
-| Document Version | 2.12 |
+| Document Version | 2.13 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.13** — §3 keepalive pattern changed from `chrome.alarms` to an in-worker `setInterval` pinging `chrome.runtime.getPlatformInfo()` every 20s while calls are in flight. Chrome clamps alarm periods to ≥0.5 min (≥1 min before Chrome 120), which lands on or after the 30s idle deadline — the alarm-based keepalive could not actually hold the worker. The `alarms` manifest permission is now unused (left in place pending a manifest change decision).
 - **2.12** — Transform v1.1 operations. `src/modules/encoding/operations.ts` gains Base32, Unicode-escape, and decimal char-code codecs (sync `OPERATIONS` entries rendered via `TextTransformPanel` — no panel change). `src/modules/defang/operations.ts` gains email and IPv6 defang/refang targets and liberal refang for munged-scheme/colon dialects, all as new rules in the existing `scanAndReplace` engine; defang output stays canonical. No interface change.
 - **2.11** — JWT verify/re-sign path added to the encoding module. `operations.ts` gains async `jwtVerify`/`jwtHmacResign` and `JwtParts`/`JwtVerdict`. JWT no longer routes through `TextTransformPanel`; `EncodingComponent` renders a bespoke `JwtPanel` when the JWT operation is selected (the panel is one of the documented "doesn't fit the shell" cases in §10.1).
 - **2.10** — §4.3 background-mode invocation extended with auto-open on completion: when a background analysis lands and no Mimir surface is open, the runner writes a TTL'd `modules.analysis.openOnNextPopup` marker and calls `openPopup()`. The popup's dispatcher drains the marker on mount and via `storage.onChanged`, routes to Log Analysis, and surfaces the entry. Surface state is detected via `chrome.runtime.getContexts({ contextTypes: ['POPUP', 'TAB'] })`, feature-detected and conservative when unavailable. New SW helper `src/background/surface-state.ts`. §9 storage namespaces gain `modules.analysis.openOnNextPopup`.
@@ -70,7 +71,7 @@ A webpack config variant produces two builds:
 
 A thin `browser-compat` module abstracts API differences (`storage` event semantics, `scripting` namespace, background-context model). Most of the codebase is unaware of which browser it's running in.
 
-**MV3 service-worker lifecycle.** Workers terminate after ~30s idle. AI calls — especially to local models running large prompts — frequently exceed this. Mitigation: during in-flight AI/CTI requests, the service worker holds a `chrome.alarms` keepalive. Long calls that exceed 4 minutes are aborted with a clear timeout to the user.
+**MV3 service-worker lifecycle.** Workers terminate after ~30s idle, and a pending fetch does not reset the idle timer — only events and extension-API calls do. AI calls — especially to local models running large prompts — frequently exceed 30s. Mitigation: while AI/CTI requests are in flight, the service worker runs a `setInterval` that calls `chrome.runtime.getPlatformInfo()` every 20s; each call resets the idle timer. `chrome.alarms` cannot serve this purpose: Chrome clamps alarm periods to a minimum of 0.5 min (1 min before Chrome 120), which fires on or after the idle deadline. Long calls that exceed 4 minutes are aborted with a clear timeout to the user.
 
 **Manifest permissions.** Minimum viable set:
 - `storage` — settings, history, API keys.

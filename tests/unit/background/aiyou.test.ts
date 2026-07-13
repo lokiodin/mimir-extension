@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiProviderConfig } from "../../../src/storage/types";
 
-// Stub chrome.alarms for the keepalive module — same surface area as the
-// real API, but a no-op so tests don't actually schedule anything.
+// Stub chrome.runtime.getPlatformInfo for the keepalive module's interval
+// ping — a no-op so tests don't touch a real API surface.
 function installChromeStub(): void {
-  const noop = () => Promise.resolve();
   (globalThis as unknown as { chrome: unknown }).chrome = {
-    alarms: {
-      create: noop,
-      clear: noop,
-      onAlarm: { addListener: () => {} },
+    runtime: {
+      getPlatformInfo: () => Promise.resolve({}),
     },
   };
 }

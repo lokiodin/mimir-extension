@@ -10,6 +10,7 @@ function installChromeStub(): ChromeStub {
     runtime: {
       getURL: (p: string) => `chrome-extension://abc/${p}`,
       getContexts: vi.fn(async () => []),
+      getPlatformInfo: async () => ({}),
     },
     storage: {
       local: {
@@ -42,11 +43,6 @@ function installChromeStub(): ChromeStub {
       openPopup: vi.fn(async () => {}),
       setBadgeText: vi.fn(async () => {}),
       setBadgeBackgroundColor: vi.fn(async () => {}),
-    },
-    alarms: {
-      create: () => Promise.resolve(),
-      clear: () => Promise.resolve(),
-      onAlarm: { addListener: () => {} },
     },
   };
   return { storage };

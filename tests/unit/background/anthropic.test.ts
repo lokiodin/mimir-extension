@@ -1,15 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiProviderConfig } from "../../../src/storage/types";
 
-// The adapter import chain reaches the keepalive module, which touches
-// chrome.alarms at module load. Stub the surface so importing is a no-op.
+// The adapter import chain reaches the keepalive module, whose interval
+// ping calls chrome.runtime.getPlatformInfo. Stub it so a slow test run
+// can't hit a missing API.
 function installChromeStub(): void {
-  const noop = () => Promise.resolve();
   (globalThis as unknown as { chrome: unknown }).chrome = {
-    alarms: {
-      create: noop,
-      clear: noop,
-      onAlarm: { addListener: () => {} },
+    runtime: {
+      getPlatformInfo: () => Promise.resolve({}),
     },
   };
 }

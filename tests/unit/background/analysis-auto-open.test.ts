@@ -29,6 +29,7 @@ function installChromeStub(opts: ChromeStubOptions = {}): ChromeStub {
 
   const runtime: Record<string, unknown> = {
     getURL: (path: string) => `chrome-extension://abc/${path}`,
+    getPlatformInfo: async () => ({}),
   };
   if (!opts.contextsUndefined) {
     runtime.getContexts = vi.fn(async () => opts.contexts ?? []);
@@ -74,11 +75,6 @@ function installChromeStub(opts: ChromeStubOptions = {}): ChromeStub {
         stub.setBadgeTextCalls.push(args);
       }),
       setBadgeBackgroundColor: vi.fn(async () => {}),
-    },
-    alarms: {
-      create: () => Promise.resolve(),
-      clear: () => Promise.resolve(),
-      onAlarm: { addListener: () => {} },
     },
   };
 

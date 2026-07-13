@@ -14,7 +14,6 @@ import { lookupVirusTotal } from "@/background/cti-client";
 import { lookupAbuseIPDB } from "@/background/abuseipdb-client";
 import { lookupAbusech } from "@/background/abusech-client";
 import { upsertProviderResult } from "@/background/cti-history";
-import { installKeepaliveListener } from "@/background/keepalive";
 import { complete as aiComplete, testConnection as aiTestConnection } from "@/background/ai-client";
 import { getApiKey, getSettings } from "@/storage/manager";
 import {
@@ -35,8 +34,6 @@ import type {
   AiCompleteRequest,
   AiTestConnectionRequest,
 } from "@/background/ai-types";
-
-installKeepaliveListener();
 
 chrome.runtime.onInstalled.addListener(() => {
   void rebuildContextMenus();

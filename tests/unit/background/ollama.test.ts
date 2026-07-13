@@ -2,12 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiProviderConfig } from "../../../src/storage/types";
 
 function installChromeStub(): void {
-  const noop = () => Promise.resolve();
   (globalThis as unknown as { chrome: unknown }).chrome = {
-    alarms: {
-      create: noop,
-      clear: noop,
-      onAlarm: { addListener: () => {} },
+    runtime: {
+      getPlatformInfo: () => Promise.resolve({}),
     },
   };
 }
