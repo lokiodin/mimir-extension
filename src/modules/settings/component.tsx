@@ -100,6 +100,19 @@ const MODEL_PLACEHOLDERS: Record<AiProviderConfig["type"], string> = {
   aiyou: AIYOU_MODELS[0],
 };
 
+const OLLAMA_DEFAULT_ENDPOINT = "http://localhost:11434";
+
+// Cloud providers resolve their default endpoint in the adapter layer when
+// the field is empty (see ai-adapters/shared/endpoint.ts) — a stored value
+// always wins, so never pre-fill one.
+const ENDPOINT_PLACEHOLDERS: Record<AiProviderConfig["type"], string> = {
+  ollama: OLLAMA_DEFAULT_ENDPOINT,
+  openai: "https://api.openai.com (default)",
+  anthropic: "https://api.anthropic.com (default)",
+  "openai-compatible": "https://your-host:8080",
+  aiyou: "https://your-ai-you-host/api/v1",
+};
+
 export const SettingsComponent: React.FC = () => {
   const [settings, updateSettings, settingsLoading] = useSettings();
   const [openSection, setOpenSection] = useState<string | null>(
@@ -135,7 +148,8 @@ export const SettingsComponent: React.FC = () => {
             id,
             type: newProviderType,
             label: `${newProviderType} provider`,
-            endpoint: "http://localhost:11434",
+            endpoint:
+              newProviderType === "ollama" ? OLLAMA_DEFAULT_ENDPOINT : "",
           };
     await updateSettings({
       aiProviders: [...settings.aiProviders, newProvider],
@@ -579,6 +593,14 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
             onChange={(e) => {
               const next = e.target.value as AiProviderConfig["type"];
               const updates: Partial<AiProviderConfig> = { type: next };
+              // Leaving a leftover Ollama endpoint on a cloud provider would
+              // send that provider's API key to localhost.
+              if (
+                (next === "openai" || next === "anthropic") &&
+                provider.endpoint === OLLAMA_DEFAULT_ENDPOINT
+              ) {
+                updates.endpoint = "";
+              }
               // Switching into AI You: ensure required fields exist so the
               // adapter and UI don't blow up before the user fills things in.
               if (next === "aiyou") {
@@ -606,9 +628,7 @@ const AiProviderCard: React.FC<AiProviderCardProps> = ({
           value={endpointDraft}
           onChange={(e) => setEndpointDraft(e.target.value)}
           onBlur={handleEndpointBlur}
-          placeholder={
-            isAiyou ? "https://your-ai-you-host/api/v1" : "http://localhost:11434"
-          }
+          placeholder={ENDPOINT_PLACEHOLDERS[provider.type]}
           className="w-full bg-gray-700 text-gray-100 border border-gray-600 rounded px-2 py-1 text-sm"
         />
         {endpointGranted === false && endpointHost(endpointDraft) && (
