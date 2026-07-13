@@ -8,9 +8,11 @@ export type Verdict =
   | "unknown"
   | "error";
 
-export type IndicatorType = "ip" | "domain" | "url" | "hash";
+export const INDICATOR_TYPES = ["ip", "domain", "url", "hash"] as const;
+export type IndicatorType = (typeof INDICATOR_TYPES)[number];
 
-export type CtiProvider = "virustotal" | "abuseipdb" | "abusech";
+export const CTI_PROVIDERS = ["virustotal", "abuseipdb", "abusech"] as const;
+export type CtiProvider = (typeof CTI_PROVIDERS)[number];
 
 // Canonical form used as the history key and the outbound lookup value.
 // URLs keep their case — paths and query strings are case-sensitive, and

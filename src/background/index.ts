@@ -25,6 +25,7 @@ import {
 import { onMenuClicked } from "@/browser-compat/menus";
 import { refreshBadge } from "@/background/badge";
 import type { Settings, SettingsUpdateRequest } from "@/storage/types";
+import { CTI_PROVIDERS, INDICATOR_TYPES } from "@/background/cti-types";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
@@ -66,8 +67,12 @@ function isCtiLookupRequest(value: unknown): value is CtiLookupRequest {
   const v = value as Record<string, unknown>;
   return (
     v.type === "cti.lookup" &&
+    // Membership, not just typeof string: an unknown provider would fall
+    // through the switch in handleCtiLookup and persist a junk history entry.
     typeof v.provider === "string" &&
+    (CTI_PROVIDERS as readonly string[]).includes(v.provider) &&
     typeof v.indicatorType === "string" &&
+    (INDICATOR_TYPES as readonly string[]).includes(v.indicatorType) &&
     typeof v.indicator === "string" &&
     typeof v.query === "string"
   );
