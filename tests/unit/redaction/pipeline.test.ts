@@ -7,7 +7,6 @@ import {
 } from "@/redaction/pipeline";
 import { createPlaceholderState } from "@/redaction/types";
 import type {
-  AiCompleteRequest,
   AiCompleteResponse,
 } from "@/background/ai-types";
 
@@ -146,7 +145,7 @@ describe("Stage 2 pipeline", () => {
       [],
       {
         providerId: "fake",
-        send: async (_req: AiCompleteRequest) =>
+        send: async () =>
           ({
             ok: true,
             providerLabel: "test",

@@ -106,13 +106,13 @@ describe("cti-history", () => {
     await upsertSuccess({ providerId: "abusech", lookedUpAt: 3 });
     const rows = await getCtiHistory();
     expect(rows).toHaveLength(1);
-    expect(Object.keys(rows[0]!.providers).sort()).toEqual([
+    expect(Object.keys(rows[0]?.providers ?? {}).sort()).toEqual([
       "abusech",
       "abuseipdb",
       "virustotal",
     ]);
-    expect(rows[0]!.firstLookupAt).toBe(1);
-    expect(rows[0]!.lastLookupAt).toBe(3);
+    expect(rows[0]?.firstLookupAt).toBe(1);
+    expect(rows[0]?.lastLookupAt).toBe(3);
   });
 
   it("re-lookup updates in place — firstLookupAt preserved, lastLookupAt advances", async () => {
@@ -125,12 +125,12 @@ describe("cti-history", () => {
     });
     const rows = await getCtiHistory();
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.firstLookupAt).toBe(100);
-    expect(rows[0]!.lastLookupAt).toBe(300);
-    expect(rows[0]!.providers.virustotal?.verdict).toBe("malicious");
-    expect(rows[0]!.providers.virustotal?.lookedUpAt).toBe(300);
+    expect(rows[0]?.firstLookupAt).toBe(100);
+    expect(rows[0]?.lastLookupAt).toBe(300);
+    expect(rows[0]?.providers.virustotal?.verdict).toBe("malicious");
+    expect(rows[0]?.providers.virustotal?.lookedUpAt).toBe(300);
     // The provider that wasn't re-run keeps its original timestamp.
-    expect(rows[0]!.providers.abuseipdb?.lookedUpAt).toBe(200);
+    expect(rows[0]?.providers.abuseipdb?.lookedUpAt).toBe(200);
   });
 
   it("moves a re-looked-up entry to the front", async () => {
@@ -154,10 +154,10 @@ describe("cti-history", () => {
     });
     const rows = await getCtiHistory();
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.providers.virustotal?.verdict).toBe("clean");
-    expect(rows[0]!.providers.virustotal?.error).toBeUndefined();
-    expect(rows[0]!.providers.abuseipdb?.verdict).toBe("error");
-    expect(rows[0]!.providers.abuseipdb?.error?.message).toBe("boom");
+    expect(rows[0]?.providers.virustotal?.verdict).toBe("clean");
+    expect(rows[0]?.providers.virustotal?.error).toBeUndefined();
+    expect(rows[0]?.providers.abuseipdb?.verdict).toBe("error");
+    expect(rows[0]?.providers.abuseipdb?.error?.message).toBe("boom");
   });
 
   it("LRU-evicts the indicator with the oldest lastLookupAt when exceeding the cap", async () => {

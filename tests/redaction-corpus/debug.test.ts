@@ -21,24 +21,24 @@ it.skip("debug: prints corpus mismatches", () => {
     );
     if (fps.length > 0 || fns.length > 0) {
       mismatches++;
-      // eslint-disable-next-line no-console
+       
       console.log(`--- ${c.id} ---`);
-      // eslint-disable-next-line no-console
+       
       console.log(`input: ${JSON.stringify(c.input)}`);
       for (const fp of fps) {
-        // eslint-disable-next-line no-console
+         
         console.log(
           `  FP ${fp.type}: ${JSON.stringify(fp.original)} @${fp.start}-${fp.end}`,
         );
       }
       for (const fn of fns) {
-        // eslint-disable-next-line no-console
+         
         console.log(
           `  FN ${fn.type}: ${JSON.stringify(fn.original)} @${fn.start}-${fn.end}`,
         );
       }
     }
   }
-  // eslint-disable-next-line no-console
+   
   console.log(`Mismatches: ${mismatches}/${cases.length}`);
 });

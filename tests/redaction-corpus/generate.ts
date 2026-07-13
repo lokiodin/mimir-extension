@@ -787,7 +787,7 @@ function main(): void {
       "utf-8",
     );
   }
-  // eslint-disable-next-line no-console
+   
   console.log(`Wrote ${CASES.length} corpus cases to ${dir}`);
 }
 

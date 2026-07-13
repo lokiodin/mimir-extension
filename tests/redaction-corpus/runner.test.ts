@@ -11,7 +11,7 @@ describe("redaction corpus", () => {
     expect(cases.length).toBeGreaterThan(0);
     const report = evaluate(cases);
     // Print to stdout so CI / dev consumers see the table.
-    // eslint-disable-next-line no-console
+     
     console.log("\n" + formatReport(report) + "\n");
     expect(report.caseCount).toBe(cases.length);
   });
