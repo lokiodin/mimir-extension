@@ -4,6 +4,7 @@
 // the existing entry in place and move it to the front.
 
 import { storageGet, storageSet, withStorageLock } from "@/storage/manager";
+import { canonicalizeIndicator } from "@/background/cti-types";
 import type {
   CtiHistoryEntry,
   CtiProvider,
@@ -77,10 +78,6 @@ export interface UpsertErrorArgs {
   error: { kind: string; message: string };
 }
 
-function normalize(indicator: string): string {
-  return indicator.trim().toLowerCase();
-}
-
 export async function upsertProviderResult(
   args: UpsertSuccessArgs | UpsertErrorArgs,
 ): Promise<void> {
@@ -88,7 +85,7 @@ export async function upsertProviderResult(
   // fans out three provider lookups in parallel; without this lock, two of
   // the three persisted slots would be lost to last-write-wins.
   return withStorageLock(HISTORY_KEY, async () => {
-    const indicator = normalize(args.indicator);
+    const indicator = canonicalizeIndicator(args.indicator, args.indicatorType);
     const entries = await getCtiHistory();
     const existing = entries.find((e) => e.indicator === indicator);
     const others = entries.filter((e) => e.indicator !== indicator);

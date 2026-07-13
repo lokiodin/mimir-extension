@@ -85,10 +85,19 @@ describe("cti-history", () => {
     expect(Object.keys(rows[0]?.providers ?? {})).toEqual(["virustotal"]);
   });
 
-  it("normalizes the indicator (lowercase, trim)", async () => {
-    await upsertSuccess({ indicator: "  Example.COM  " });
+  it("canonicalizes non-URL indicators (lowercase, trim)", async () => {
+    await upsertSuccess({ indicator: "  Example.COM  ", indicatorType: "domain" });
     const rows = await getCtiHistory();
     expect(rows[0]?.indicator).toBe("example.com");
+  });
+
+  it("preserves URL case (path/query are case-sensitive)", async () => {
+    await upsertSuccess({
+      indicator: "  https://example.com/Login?Token=AbC  ",
+      indicatorType: "url",
+    });
+    const rows = await getCtiHistory();
+    expect(rows[0]?.indicator).toBe("https://example.com/Login?Token=AbC");
   });
 
   it("collapses multiple providers for the same indicator into one entry", async () => {

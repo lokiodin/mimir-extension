@@ -9,6 +9,7 @@ import type {
   IndicatorType,
   Verdict,
 } from "@/background/cti-types";
+import { canonicalizeIndicator } from "@/background/cti-types";
 import { detectIndicatorType } from "@/modules/cti/detect";
 import { HistoryPane } from "@/modules/cti/history-pane";
 import { useApiKey, useSettings } from "@/storage/context";
@@ -203,7 +204,7 @@ export const CtiComponent: React.FC = () => {
       return;
     }
     setErrorMessage(null);
-    const canonical = trimmed.toLowerCase();
+    const canonical = canonicalizeIndicator(trimmed, indicatorType);
     setSelectedIndicator(canonical);
     for (const provider of PROVIDERS) {
       runForProvider(provider, canonical, indicatorType, trimmed);

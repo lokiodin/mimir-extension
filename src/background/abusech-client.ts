@@ -4,6 +4,7 @@
 
 import { withKeepalive } from "@/background/keepalive";
 import { REQUEST_TIMEOUT_MS } from "@/background/ai-adapters/shared/http";
+import { canonicalizeIndicator } from "@/background/cti-types";
 import type {
   CtiResult,
   CtiSummaryField,
@@ -140,7 +141,10 @@ export async function lookupAbusech(args: {
 
   const timestamp = Date.now();
   const staleAfter = timestamp + args.ttlHours * 3_600_000;
-  const canonicalIndicator = args.indicator.trim().toLowerCase();
+  const canonicalIndicator = canonicalizeIndicator(
+    args.indicator,
+    args.indicatorType,
+  );
 
   if (response.status === 401 || response.status === 403) {
     throw new Error("abuse.ch: invalid or unauthorized API key");

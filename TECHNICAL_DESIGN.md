@@ -8,6 +8,7 @@
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.14** — §6 canonical-indicator rule refined: URLs keep their case; ip/domain/hash remain trimmed + lowercased. Lowercasing a URL changed its identity (case-sensitive path/query), so VirusTotal lookups hit the wrong record. Shared `canonicalizeIndicator()` in `src/background/cti-types.ts` is now the single implementation used by the UI, the three provider clients, and the history upsert.
 - **2.13** — §3 keepalive pattern changed from `chrome.alarms` to an in-worker `setInterval` pinging `chrome.runtime.getPlatformInfo()` every 20s while calls are in flight. Chrome clamps alarm periods to ≥0.5 min (≥1 min before Chrome 120), which lands on or after the 30s idle deadline — the alarm-based keepalive could not actually hold the worker. The `alarms` manifest permission is now unused (left in place pending a manifest change decision).
 - **2.12** — Transform v1.1 operations. `src/modules/encoding/operations.ts` gains Base32, Unicode-escape, and decimal char-code codecs (sync `OPERATIONS` entries rendered via `TextTransformPanel` — no panel change). `src/modules/defang/operations.ts` gains email and IPv6 defang/refang targets and liberal refang for munged-scheme/colon dialects, all as new rules in the existing `scanAndReplace` engine; defang output stays canonical. No interface change.
 - **2.11** — JWT verify/re-sign path added to the encoding module. `operations.ts` gains async `jwtVerify`/`jwtHmacResign` and `JwtParts`/`JwtVerdict`. JWT no longer routes through `TextTransformPanel`; `EncodingComponent` renders a bespoke `JwtPanel` when the JWT operation is selected (the panel is one of the documented "doesn't fit the shell" cases in §10.1).
@@ -255,7 +256,7 @@ Service worker exposes `ctiLookup(indicator, sources[])` that fans out to config
 
 **No client-side rate limiting.** If the user hits a provider's limit, they see the provider's 429 response and deal with it. Mimir does not pre-emptively throttle.
 
-**Unified history store** (`cti.history.*`). One entry per **normalized indicator** (lowercased, trimmed). Each entry carries:
+**Unified history store** (`cti.history.*`). One entry per **canonical indicator**: trimmed, and lowercased for ip/domain/hash. URLs keep their case — paths and query strings are case-sensitive, and VirusTotal identifies a URL by the exact string. Each entry carries:
 
 - `indicator`, `indicatorType`, `query` (the original user input on first lookup)
 - `firstLookupAt`, `lastLookupAt`

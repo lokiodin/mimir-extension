@@ -12,6 +12,18 @@ export type IndicatorType = "ip" | "domain" | "url" | "hash";
 
 export type CtiProvider = "virustotal" | "abuseipdb" | "abusech";
 
+// Canonical form used as the history key and the outbound lookup value.
+// URLs keep their case — paths and query strings are case-sensitive, and
+// VirusTotal identifies a URL by the exact string (base64url of it) — while
+// ip/domain/hash are case-insensitive by definition and lowercase for dedup.
+export function canonicalizeIndicator(
+  indicator: string,
+  type: IndicatorType,
+): string {
+  const trimmed = indicator.trim();
+  return type === "url" ? trimmed : trimmed.toLowerCase();
+}
+
 export interface CtiSummaryField {
   label: string;
   value: string;
