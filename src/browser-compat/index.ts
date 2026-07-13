@@ -29,9 +29,9 @@
 //    Handled at the manifest level (manifest.chromium.json vs
 //    manifest.firefox.json). All listeners in src/background/index.ts are
 //    registered synchronously at top level so they survive both lifecycle
-//    models. The chrome.alarms keepalive (src/background/keepalive.ts) works
-//    on both — Firefox event pages are kept alive by the alarm's onAlarm
-//    listener the same way Chromium SWs are.
+//    models. The setInterval keepalive (src/background/keepalive.ts) works
+//    on both — the periodic chrome.runtime.getPlatformInfo() call resets the
+//    idle timer of Firefox event pages the same way it does Chromium SWs.
 //
 // 4. permissions.request() user-gesture rule.
 //    Firefox rejects the call outside a user-gesture handler (button click,
@@ -59,7 +59,7 @@
 // ----------------------------------------------------------------------------
 //
 // - chrome.runtime.sendMessage / onMessage, chrome.storage.local.get/set/remove,
-//   chrome.alarms.*, chrome.action.setBadgeText / setBadgeBackgroundColor,
+//   chrome.action.setBadgeText / setBadgeBackgroundColor,
 //   chrome.permissions.contains, chrome.runtime.getURL — Firefox 109+ exposes
 //   chrome.* as a Promise-returning alias for browser.*, so these all work
 //   identically across both targets. Don't add wrapper helpers "just in case."
