@@ -89,6 +89,7 @@ export const CtiComponent: React.FC = () => {
   const pendingInput = useMimirStore((s) => s.pendingInput);
   const setPendingInput = useMimirStore((s) => s.setPendingInput);
   const [settings] = useSettings();
+  const [virustotalKey] = useApiKey("virustotal");
   const [abuseipdbKey] = useApiKey("abuseipdb");
   const [abusechKey] = useApiKey("abusech");
 
@@ -136,6 +137,15 @@ export const CtiComponent: React.FC = () => {
     provider: CtiProvider,
     indicatorType: IndicatorType,
   ): { run: true } | { run: false; state: CardState } => {
+    // Gate on the key here so an unconfigured provider gets a
+    // "not-configured" card instead of a thrown SW error that would also
+    // persist an error slot into cti.history on every lookup.
+    if (provider === "virustotal" && !virustotalKey) {
+      return {
+        run: false,
+        state: { kind: "not-configured", reason: "API key not set." },
+      };
+    }
     if (provider === "abuseipdb" && indicatorType !== "ip") {
       return {
         run: false,
