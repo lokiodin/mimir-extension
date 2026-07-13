@@ -8,6 +8,7 @@
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.15** — §9: the `settings` storage key becomes single-writer. UI surfaces send a `settings.update` message (`SettingsUpdateRequest` in `src/storage/types.ts`); the SW applies patches via the locked `updateSettings`. New `requestSettingsUpdate` helper in `src/storage/manager.ts` for UI callers. Fixes cross-context read-modify-write races dropping settings patches.
 - **2.14** — §6 canonical-indicator rule refined: URLs keep their case; ip/domain/hash remain trimmed + lowercased. Lowercasing a URL changed its identity (case-sensitive path/query), so VirusTotal lookups hit the wrong record. Shared `canonicalizeIndicator()` in `src/background/cti-types.ts` is now the single implementation used by the UI, the three provider clients, and the history upsert.
 - **2.13** — §3 keepalive pattern changed from `chrome.alarms` to an in-worker `setInterval` pinging `chrome.runtime.getPlatformInfo()` every 20s while calls are in flight. Chrome clamps alarm periods to ≥0.5 min (≥1 min before Chrome 120), which lands on or after the 30s idle deadline — the alarm-based keepalive could not actually hold the worker. The `alarms` manifest permission is now unused (left in place pending a manifest change decision).
 - **2.12** — Transform v1.1 operations. `src/modules/encoding/operations.ts` gains Base32, Unicode-escape, and decimal char-code codecs (sync `OPERATIONS` entries rendered via `TextTransformPanel` — no panel change). `src/modules/defang/operations.ts` gains email and IPv6 defang/refang targets and liberal refang for munged-scheme/colon dialects, all as new rules in the existing `scanAndReplace` engine; defang output stays canonical. No interface change.
@@ -334,6 +335,8 @@ prompts.*                        — user-customized system prompts
 ```
 
 No `chrome.storage.sync`. History stays on the device.
+
+**The `settings` key is single-writer.** Only the service worker writes it: UI surfaces send a `settings.update` message carrying a `Partial<Settings>` patch, and the SW applies it under the per-key write lock. `chrome.storage.local` has no transactional read-modify-write and the in-memory lock only serializes within one JS context — routing every settings write through the SW is what makes the lock cover all writers (two open surfaces plus the SW's own `lastPopupOpenedTs` bump would otherwise race and drop patches).
 
 Storage events are bridged into a React context so UI updates react to writes from the service worker.
 

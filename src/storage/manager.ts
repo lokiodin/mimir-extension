@@ -2,7 +2,7 @@
 // See TECHNICAL_DESIGN.md §9.
 // All chrome.storage.local access goes through this module.
 
-import type { Settings } from "@/storage/types";
+import type { Settings, SettingsUpdateRequest } from "@/storage/types";
 import { DEFAULT_SETTINGS } from "@/storage/types";
 
 const SETTINGS_KEY = "settings";
@@ -50,10 +50,27 @@ export async function getSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...stored };
 }
 
+// Direct read-merge-write of the settings key. SW-only: UI surfaces go
+// through requestSettingsUpdate so the SW stays the single writer and this
+// lock actually covers every writer (it only serializes within one JS
+// context).
 export async function updateSettings(patch: Partial<Settings>): Promise<void> {
-  const current = await getSettings();
-  const updated = { ...current, ...patch };
-  await storageSet(SETTINGS_KEY, updated);
+  return withStorageLock(SETTINGS_KEY, async () => {
+    const current = await getSettings();
+    const updated = { ...current, ...patch };
+    await storageSet(SETTINGS_KEY, updated);
+  });
+}
+
+// UI-side settings updater — ships the patch to the SW, which applies it
+// under the settings lock.
+export async function requestSettingsUpdate(
+  patch: Partial<Settings>,
+): Promise<void> {
+  await chrome.runtime.sendMessage({
+    type: "settings.update",
+    patch,
+  } satisfies SettingsUpdateRequest);
 }
 
 // API key helpers (namespaced under 'apikeys.*')

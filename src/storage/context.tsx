@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import {
   getSettings,
-  updateSettings,
+  requestSettingsUpdate,
   getApiKey,
 } from "@/storage/manager";
 import type { Settings } from "@/storage/types";
@@ -117,7 +117,8 @@ export function useSettings(): [
   }, [revision]);
 
   const handleUpdate = async (patch: Partial<Settings>): Promise<void> => {
-    await updateSettings(patch);
+    // Routed through the SW — the settings key is single-writer (TD §9).
+    await requestSettingsUpdate(patch);
   };
 
   return [settings, handleUpdate, loading];

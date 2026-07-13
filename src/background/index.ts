@@ -15,7 +15,7 @@ import { lookupAbuseIPDB } from "@/background/abuseipdb-client";
 import { lookupAbusech } from "@/background/abusech-client";
 import { upsertProviderResult } from "@/background/cti-history";
 import { complete as aiComplete, testConnection as aiTestConnection } from "@/background/ai-client";
-import { getApiKey, getSettings } from "@/storage/manager";
+import { getApiKey, getSettings, updateSettings } from "@/storage/manager";
 import {
   handleMenuClick,
   handlePopupOpened,
@@ -24,7 +24,7 @@ import {
 } from "@/background/context-menus";
 import { onMenuClicked } from "@/browser-compat/menus";
 import { refreshBadge } from "@/background/badge";
-import type { Settings } from "@/storage/types";
+import type { Settings, SettingsUpdateRequest } from "@/storage/types";
 import type {
   CtiLookupRequest,
   CtiLookupResponse,
@@ -90,6 +90,18 @@ function isAiTestConnectionRequest(
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return v.type === "ai.test-connection" && typeof v.providerId === "string";
+}
+
+function isSettingsUpdateRequest(
+  value: unknown,
+): value is SettingsUpdateRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.type === "settings.update" &&
+    typeof v.patch === "object" &&
+    v.patch !== null
+  );
 }
 
 async function handleCtiLookup(
@@ -187,6 +199,13 @@ chrome.runtime.onMessage.addListener(
 
     if (isAiTestConnectionRequest(message)) {
       aiTestConnection(message).then(sendResponse);
+      return true;
+    }
+
+    if (isSettingsUpdateRequest(message)) {
+      // The SW is the only writer of the settings key (TD §9); the lock
+      // inside updateSettings serializes concurrent patches here.
+      updateSettings(message.patch).then(() => sendResponse({ ok: true }));
       return true;
     }
 

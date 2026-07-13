@@ -26,6 +26,15 @@ export interface Settings {
   logAnalysisLanguage?: AnalysisLanguage; // Log Analysis report language; undefined ⇒ "en"
 }
 
+// UI → SW message that patches the settings key. The `settings` key is
+// single-writer: only the service worker writes it, so cross-context
+// read-modify-write races (e.g. popup-open bumping lastPopupOpenedTs while
+// a surface saves lastActiveModuleId) can't drop a write. See TD §9.
+export interface SettingsUpdateRequest {
+  type: "settings.update";
+  patch: Partial<Settings>;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   aiProviders: [],
   ctiTtlHours: 72,

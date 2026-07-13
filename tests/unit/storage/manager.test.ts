@@ -71,6 +71,18 @@ describe("settings", () => {
       abusechMode: "api",
     });
   });
+
+  it("serializes concurrent updateSettings patches", async () => {
+    // Without the settings lock both patches read the same baseline and the
+    // second write clobbers the first.
+    await Promise.all([
+      m.updateSettings({ ctiTtlHours: 12 }),
+      m.updateSettings({ abusechMode: "api" }),
+    ]);
+    const settings = await m.getSettings();
+    expect(settings.ctiTtlHours).toBe(12);
+    expect(settings.abusechMode).toBe("api");
+  });
 });
 
 describe("namespaced api keys and prompts", () => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { getModules } from "@/registry/loader";
 import { useMimirStore } from "@/store";
-import { getSettings, updateSettings } from "@/storage/manager";
+import { getSettings, requestSettingsUpdate } from "@/storage/manager";
 import { useContextMenuDispatcher } from "@/surfaces/useContextMenuDispatcher";
 
 const modules = getModules();
@@ -44,7 +44,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (activeModuleId === "") return;
-    void updateSettings({ lastActiveModuleId: activeModuleId });
+    void requestSettingsUpdate({ lastActiveModuleId: activeModuleId });
   }, [activeModuleId]);
 
   const activeModule = modules.find((m) => m.id === activeModuleId);
