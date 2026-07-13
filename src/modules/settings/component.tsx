@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { useSettings, useApiKey } from "@/storage/context";
-import { removeApiKey, removePrompt } from "@/storage/manager";
+import {
+  getPrompt,
+  removeApiKey,
+  removePrompt,
+  setPrompt as setStoredPrompt,
+} from "@/storage/manager";
 import { PROMPT_DEFAULTS } from "@/prompts/defaults";
 import type { AiProviderConfig } from "@/storage/types";
 import { AIYOU_MODELS } from "@/background/ai-adapters/aiyou";
@@ -90,7 +95,7 @@ const Section: React.FC<SectionProps> = ({
   </div>
 );
 
-const REDACTION_FEATURE_IDS = ["log-analysis", "redaction-ai"];
+const PROMPT_FEATURE_IDS = ["log-analysis", "redaction-ai"];
 
 const MODEL_PLACEHOLDERS: Record<AiProviderConfig["type"], string> = {
   ollama: "llama3.2",
@@ -285,7 +290,7 @@ export const SettingsComponent: React.FC = () => {
       {/* System Prompts */}
       <Section title="System Prompts" id="system-prompts" {...sectionProps}>
         <div className="space-y-4">
-          {REDACTION_FEATURE_IDS.map((featureId) => (
+          {PROMPT_FEATURE_IDS.map((featureId) => (
             <PromptField key={featureId} featureId={featureId} />
           ))}
         </div>
@@ -962,40 +967,44 @@ const ContextMenuToggles: React.FC<ContextMenuTogglesProps> = ({
 };
 
 const PromptField: React.FC<PromptFieldProps> = ({ featureId }) => {
-  const [prompt, setPrompt] = useState(
-    PROMPT_DEFAULTS[featureId] ?? "",
-  );
+  const [draft, setDraft] = useState(PROMPT_DEFAULTS[featureId] ?? "");
   const [isCustom, setIsCustom] = useState(false);
 
   React.useEffect(() => {
-    const loadPrompt = async () => {
-      const { getPrompt } = await import("@/storage/manager");
-      const stored = await getPrompt(featureId);
+    let cancelled = false;
+    void getPrompt(featureId).then((stored) => {
+      if (cancelled) return;
       if (stored) {
-        setPrompt(stored);
+        setDraft(stored);
         setIsCustom(true);
       } else {
-        setPrompt(PROMPT_DEFAULTS[featureId] ?? "");
+        setDraft(PROMPT_DEFAULTS[featureId] ?? "");
         setIsCustom(false);
       }
+    });
+    return () => {
+      cancelled = true;
     };
-    loadPrompt();
   }, [featureId]);
 
-  const handleChange = async (value: string) => {
-    setPrompt(value);
-    const { setPrompt: setStoragePrompt } = await import(
-      "@/storage/manager"
-    );
-    if (value.trim()) {
-      await setStoragePrompt(featureId, value);
+  // Commit on blur, not per keystroke. An emptied field (or one typed back
+  // to the default) removes the override so storage and the "custom" badge
+  // can't drift apart.
+  const handleBlur = async () => {
+    const def = PROMPT_DEFAULTS[featureId] ?? "";
+    if (draft.trim() === "" || draft === def) {
+      await removePrompt(featureId);
+      setDraft(def);
+      setIsCustom(false);
+    } else {
+      await setStoredPrompt(featureId, draft);
       setIsCustom(true);
     }
   };
 
   const handleReset = async () => {
     await removePrompt(featureId);
-    setPrompt(PROMPT_DEFAULTS[featureId] ?? "");
+    setDraft(PROMPT_DEFAULTS[featureId] ?? "");
     setIsCustom(false);
   };
 
@@ -1018,8 +1027,9 @@ const PromptField: React.FC<PromptFieldProps> = ({ featureId }) => {
         )}
       </div>
       <textarea
-        value={prompt}
-        onChange={(e) => handleChange(e.target.value)}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleBlur}
         placeholder={`Paste custom system prompt for ${label}`}
         rows={4}
         className="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-gray-500"
