@@ -1,0 +1,19 @@
+{
+  "id": "sweep-004-mac-multi",
+  "source": "synthesized",
+  "input": "Bridge: aa:bb:cc:dd:ee:ff <-> 11:22:33:44:55:66 (passthrough)",
+  "expected": [
+    {
+      "type": "mac address",
+      "start": 8,
+      "end": 25,
+      "original": "aa:bb:cc:dd:ee:ff"
+    },
+    {
+      "type": "mac address",
+      "start": 30,
+      "end": 47,
+      "original": "11:22:33:44:55:66"
+    }
+  ]
+}

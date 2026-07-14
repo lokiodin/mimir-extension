@@ -1,0 +1,19 @@
+{
+  "id": "sweep-026-ipv6-mixed-line",
+  "source": "synthesized",
+  "input": "wg0 peer 2001:db8::cafe sent 10.42.0.7 via tunnel",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 9,
+      "end": 23,
+      "original": "2001:db8::cafe"
+    },
+    {
+      "type": "ipv4",
+      "start": 29,
+      "end": 38,
+      "original": "10.42.0.7"
+    }
+  ]
+}

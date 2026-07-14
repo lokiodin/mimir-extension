@@ -1,0 +1,13 @@
+{
+  "id": "sweep-007-ipv6-with-port",
+  "source": "synthesized",
+  "input": "[2001:db8::1]:8080 was the listener",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 1,
+      "end": 12,
+      "original": "2001:db8::1"
+    }
+  ]
+}

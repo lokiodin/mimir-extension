@@ -1,0 +1,13 @@
+{
+  "id": "highentropy-001-api-key",
+  "source": "synthesized",
+  "input": "API_KEY=aB3xY7zQ9mNvR2sLpKj8FdGhWqEr4Tu5 deployed to staging.",
+  "expected": [
+    {
+      "type": "high entropy",
+      "start": 8,
+      "end": 40,
+      "original": "aB3xY7zQ9mNvR2sLpKj8FdGhWqEr4Tu5"
+    }
+  ]
+}

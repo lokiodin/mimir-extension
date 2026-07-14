@@ -1,0 +1,13 @@
+{
+  "id": "jwt-002-cookie",
+  "source": "synthesized",
+  "input": "Set-Cookie: session=eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE2MzQ1Njc4OTB9.SignaturePartHere; Path=/",
+  "expected": [
+    {
+      "type": "jwt",
+      "start": 20,
+      "end": 83,
+      "original": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE2MzQ1Njc4OTB9.SignaturePartHere"
+    }
+  ]
+}

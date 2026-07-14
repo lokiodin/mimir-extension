@@ -1,0 +1,13 @@
+{
+  "id": "userpath-001-macos",
+  "source": "synthesized",
+  "input": "Saved at /Users/alice/Documents/leaked.txt for review",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 16,
+      "end": 21,
+      "original": "alice"
+    }
+  ]
+}

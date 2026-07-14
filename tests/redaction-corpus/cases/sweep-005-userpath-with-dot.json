@@ -1,0 +1,13 @@
+{
+  "id": "sweep-005-userpath-with-dot",
+  "source": "synthesized",
+  "input": "Logs at /home/jane.doe/var/syslog.1",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 14,
+      "end": 22,
+      "original": "jane.doe"
+    }
+  ]
+}

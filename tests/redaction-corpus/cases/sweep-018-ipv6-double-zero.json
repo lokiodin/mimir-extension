@@ -1,0 +1,13 @@
+{
+  "id": "sweep-018-ipv6-double-zero",
+  "source": "synthesized",
+  "input": "Anycast 2001:4860:4860::8888 reachable",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 8,
+      "end": 28,
+      "original": "2001:4860:4860::8888"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "sweep-014-fqdn-gov",
+  "source": "synthesized",
+  "input": "Phishing landed on portal.dept.gov briefly.",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 19,
+      "end": 34,
+      "original": "portal.dept.gov"
+    }
+  ]
+}

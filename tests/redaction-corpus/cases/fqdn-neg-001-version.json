@@ -1,0 +1,6 @@
+{
+  "id": "fqdn-neg-001-version",
+  "source": "synthesized",
+  "input": "Library updated 1.2.3.release on 2024-01-01",
+  "expected": []
+}

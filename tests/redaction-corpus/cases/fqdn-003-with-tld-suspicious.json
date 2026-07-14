@@ -1,0 +1,6 @@
+{
+  "id": "fqdn-003-with-tld-suspicious",
+  "source": "synthesized",
+  "input": "Phishing landing at login-portal.tk",
+  "expected": []
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ipv6-004-link-local",
+  "source": "synthesized",
+  "input": "link-local fe80::1ff:fe23:4567:890a discovered",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 11,
+      "end": 35,
+      "original": "fe80::1ff:fe23:4567:890a"
+    }
+  ]
+}

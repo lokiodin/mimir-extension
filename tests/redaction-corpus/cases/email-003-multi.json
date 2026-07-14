@@ -1,0 +1,25 @@
+{
+  "id": "email-003-multi",
+  "source": "synthesized",
+  "input": "Cc: bob@corp.com, carol.smith@sub.example.co, dave_42@team.dev — please review.",
+  "expected": [
+    {
+      "type": "email",
+      "start": 4,
+      "end": 16,
+      "original": "bob@corp.com"
+    },
+    {
+      "type": "email",
+      "start": 18,
+      "end": 44,
+      "original": "carol.smith@sub.example.co"
+    },
+    {
+      "type": "email",
+      "start": 46,
+      "end": 62,
+      "original": "dave_42@team.dev"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "ipv4-003-multiple",
+  "source": "synthesized",
+  "input": "src=10.0.0.1 dst=192.168.1.50 via gateway 172.16.0.1",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 4,
+      "end": 12,
+      "original": "10.0.0.1"
+    },
+    {
+      "type": "ipv4",
+      "start": 17,
+      "end": 29,
+      "original": "192.168.1.50"
+    },
+    {
+      "type": "ipv4",
+      "start": 42,
+      "end": 52,
+      "original": "172.16.0.1"
+    }
+  ]
+}

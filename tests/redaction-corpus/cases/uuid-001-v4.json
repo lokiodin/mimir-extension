@@ -1,0 +1,13 @@
+{
+  "id": "uuid-001-v4",
+  "source": "synthesized",
+  "input": "Trace id 550e8400-e29b-41d4-a716-446655440000 captured for the failure.",
+  "expected": [
+    {
+      "type": "uuid",
+      "start": 9,
+      "end": 45,
+      "original": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ]
+}

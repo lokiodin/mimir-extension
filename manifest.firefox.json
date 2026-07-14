@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Mimir",
+  "version": "1.0.0",
+  "description": "Cybersecurity toolkit — encoding, CTI, log analysis, redaction, payloads",
+  "permissions": ["storage", "contextMenus", "activeTab", "clipboardWrite"],
+  "host_permissions": [
+    "https://www.virustotal.com/*",
+    "https://api.abuseipdb.com/*",
+    "https://threatfox-api.abuse.ch/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "icons": {
+    "16": "icons/logo-16.png",
+    "32": "icons/logo-32.png",
+    "48": "icons/logo-48.png",
+    "128": "icons/logo-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mimir",
+    "default_icon": {
+      "16": "icons/logo-16.png",
+      "32": "icons/logo-32.png"
+    }
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mimir@extension.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}

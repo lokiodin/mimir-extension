@@ -1,0 +1,6 @@
+{
+  "id": "userpath-neg-001-shared",
+  "source": "synthesized",
+  "input": "/Users/Shared/CommonResources is global, not personal.",
+  "expected": []
+}

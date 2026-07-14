@@ -1,0 +1,13 @@
+{
+  "id": "jwt-001-bearer",
+  "source": "synthesized",
+  "input": "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "expected": [
+    {
+      "type": "jwt",
+      "start": 22,
+      "end": 107,
+      "original": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    }
+  ]
+}

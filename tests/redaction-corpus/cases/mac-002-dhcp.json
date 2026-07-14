@@ -1,0 +1,19 @@
+{
+  "id": "mac-002-dhcp",
+  "source": "synthesized",
+  "input": "DHCPACK on 10.10.10.50 to 0a-1b-2c-3d-4e-5f via eth1",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 11,
+      "end": 22,
+      "original": "10.10.10.50"
+    },
+    {
+      "type": "mac address",
+      "start": 26,
+      "end": 43,
+      "original": "0a-1b-2c-3d-4e-5f"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ipv6-001-full",
+  "source": "synthesized",
+  "input": "Connection from 2001:0db8:0000:0042:0000:8a2e:0370:7334 was rejected.",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 16,
+      "end": 55,
+      "original": "2001:0db8:0000:0042:0000:8a2e:0370:7334"
+    }
+  ]
+}

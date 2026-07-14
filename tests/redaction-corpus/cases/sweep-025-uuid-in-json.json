@@ -1,0 +1,13 @@
+{
+  "id": "sweep-025-uuid-in-json",
+  "source": "synthesized",
+  "input": "{\"correlationId\":\"00000000-0000-4000-8000-000000000001\"}",
+  "expected": [
+    {
+      "type": "uuid",
+      "start": 18,
+      "end": 54,
+      "original": "00000000-0000-4000-8000-000000000001"
+    }
+  ]
+}

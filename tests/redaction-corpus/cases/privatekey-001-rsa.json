@@ -1,0 +1,13 @@
+{
+  "id": "privatekey-001-rsa",
+  "source": "synthesized",
+  "input": "User dump:\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\ndone.",
+  "expected": [
+    {
+      "type": "private key block",
+      "start": 11,
+      "end": 137,
+      "original": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----"
+    }
+  ]
+}

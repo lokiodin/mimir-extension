@@ -1,0 +1,13 @@
+{
+  "id": "privatekey-002-openssh",
+  "source": "synthesized",
+  "input": "Backup of id_ed25519:\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz\nc2gtZWQyNTUxOQAAACDdGtbeXEoXLZc8DH+xnD3UXBNlJjkCfvRjUHFBVBBFAQAA\n-----END OPENSSH PRIVATE KEY-----",
+  "expected": [
+    {
+      "type": "private key block",
+      "start": 22,
+      "end": 221,
+      "original": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz\nc2gtZWQyNTUxOQAAACDdGtbeXEoXLZc8DH+xnD3UXBNlJjkCfvRjUHFBVBBFAQAA\n-----END OPENSSH PRIVATE KEY-----"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sweep-010-aws-multi-prefix",
+  "source": "synthesized",
+  "input": "Old ANPAJ1NLBQDX9YOA0001 replaced by AGPAJ1NLBQDX9YOA0002 for service.",
+  "expected": [
+    {
+      "type": "aws access key",
+      "start": 4,
+      "end": 24,
+      "original": "ANPAJ1NLBQDX9YOA0001"
+    },
+    {
+      "type": "aws access key",
+      "start": 37,
+      "end": 57,
+      "original": "AGPAJ1NLBQDX9YOA0002"
+    }
+  ]
+}

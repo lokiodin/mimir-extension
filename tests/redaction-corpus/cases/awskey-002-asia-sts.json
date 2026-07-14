@@ -1,0 +1,13 @@
+{
+  "id": "awskey-002-asia-sts",
+  "source": "synthesized",
+  "input": "Credentials issued by STS: ASIAY34FZKBOKMUTVV7A (expires soon)",
+  "expected": [
+    {
+      "type": "aws access key",
+      "start": 27,
+      "end": 47,
+      "original": "ASIAY34FZKBOKMUTVV7A"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "sweep-019-multi-detector-dense",
+  "source": "synthesized",
+  "input": "POST https://api.example.com/v1 from 8.8.8.8 with Authorization: Bearer ghp_abcabcabcabcabcabcabcabcabcabcabcabc",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 13,
+      "end": 28,
+      "original": "api.example.com"
+    },
+    {
+      "type": "ipv4",
+      "start": 37,
+      "end": 44,
+      "original": "8.8.8.8"
+    },
+    {
+      "type": "github token",
+      "start": 72,
+      "end": 112,
+      "original": "ghp_abcabcabcabcabcabcabcabcabcabcabcabc"
+    }
+  ]
+}

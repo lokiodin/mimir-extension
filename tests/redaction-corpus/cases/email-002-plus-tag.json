@@ -1,0 +1,13 @@
+{
+  "id": "email-002-plus-tag",
+  "source": "synthesized",
+  "input": "Sent invoice to billing+receipts@company.io yesterday.",
+  "expected": [
+    {
+      "type": "email",
+      "start": 16,
+      "end": 43,
+      "original": "billing+receipts@company.io"
+    }
+  ]
+}

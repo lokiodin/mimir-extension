@@ -1,0 +1,19 @@
+{
+  "id": "fqdn-002-multi-subdomain",
+  "source": "synthesized",
+  "input": "Resolved api.staging.internal.dev to 10.0.0.42",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 9,
+      "end": 33,
+      "original": "api.staging.internal.dev"
+    },
+    {
+      "type": "ipv4",
+      "start": 37,
+      "end": 46,
+      "original": "10.0.0.42"
+    }
+  ]
+}

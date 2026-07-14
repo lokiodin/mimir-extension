@@ -1,0 +1,13 @@
+{
+  "id": "userpath-002-linux",
+  "source": "synthesized",
+  "input": "Working dir was /home/bob/projects/internal-tool",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 22,
+      "end": 25,
+      "original": "bob"
+    }
+  ]
+}

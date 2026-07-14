@@ -1,0 +1,19 @@
+{
+  "id": "mac-001-arp",
+  "source": "synthesized",
+  "input": "ARP entry: 192.168.1.10 -> 00:1A:2B:3C:4D:5E (eth0)",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 11,
+      "end": 23,
+      "original": "192.168.1.10"
+    },
+    {
+      "type": "mac address",
+      "start": 27,
+      "end": 44,
+      "original": "00:1A:2B:3C:4D:5E"
+    }
+  ]
+}

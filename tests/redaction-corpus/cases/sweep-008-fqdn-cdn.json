@@ -1,0 +1,13 @@
+{
+  "id": "sweep-008-fqdn-cdn",
+  "source": "synthesized",
+  "input": "Asset hosted on cdn.fastly.net for static delivery.",
+  "expected": [
+    {
+      "type": "fqdn",
+      "start": 16,
+      "end": 30,
+      "original": "cdn.fastly.net"
+    }
+  ]
+}

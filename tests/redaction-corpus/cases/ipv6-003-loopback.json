@@ -1,0 +1,13 @@
+{
+  "id": "ipv6-003-loopback",
+  "source": "synthesized",
+  "input": "bind ::1 port 8080 inside container",
+  "expected": [
+    {
+      "type": "ipv6",
+      "start": 5,
+      "end": 8,
+      "original": "::1"
+    }
+  ]
+}

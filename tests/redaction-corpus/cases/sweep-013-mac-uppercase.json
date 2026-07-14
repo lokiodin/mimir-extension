@@ -1,0 +1,13 @@
+{
+  "id": "sweep-013-mac-uppercase",
+  "source": "synthesized",
+  "input": "Adapter ID: DE:AD:BE:EF:CA:FE active",
+  "expected": [
+    {
+      "type": "mac address",
+      "start": 12,
+      "end": 29,
+      "original": "DE:AD:BE:EF:CA:FE"
+    }
+  ]
+}

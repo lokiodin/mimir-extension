@@ -1,0 +1,13 @@
+{
+  "id": "sweep-029-userpath-edge-windows",
+  "source": "synthesized",
+  "input": "Drive D:\\Users\\eve\\Documents has the artefact",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 15,
+      "end": 18,
+      "original": "eve"
+    }
+  ]
+}

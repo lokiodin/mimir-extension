@@ -1,0 +1,13 @@
+{
+  "id": "sweep-011-uuid-lowercase",
+  "source": "synthesized",
+  "input": "id=ffffffff-ffff-4fff-bfff-ffffffffffff in DB.",
+  "expected": [
+    {
+      "type": "uuid",
+      "start": 3,
+      "end": 39,
+      "original": "ffffffff-ffff-4fff-bfff-ffffffffffff"
+    }
+  ]
+}

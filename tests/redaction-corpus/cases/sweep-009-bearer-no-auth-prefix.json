@@ -1,0 +1,13 @@
+{
+  "id": "sweep-009-bearer-no-auth-prefix",
+  "source": "synthesized",
+  "input": "Saw token in body: Bearer xyzqrstuvwxyz1234567890abcdefgh that should not be there.",
+  "expected": [
+    {
+      "type": "bearer token",
+      "start": 26,
+      "end": 57,
+      "original": "xyzqrstuvwxyz1234567890abcdefgh"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "id": "negative-003-code",
+  "source": "synthesized",
+  "input": "for (let i = 0; i < 256; i++) { hash[i] = (hash[i] >> 4) & 0xff; }",
+  "expected": []
+}

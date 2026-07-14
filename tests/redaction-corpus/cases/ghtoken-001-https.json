@@ -1,0 +1,19 @@
+{
+  "id": "ghtoken-001-https",
+  "source": "synthesized",
+  "input": "git clone https://oauth2:ghp_abc1234567890abc1234567890abc1234567@github.com/org/repo.git",
+  "expected": [
+    {
+      "type": "github token",
+      "start": 25,
+      "end": 65,
+      "original": "ghp_abc1234567890abc1234567890abc1234567"
+    },
+    {
+      "type": "fqdn",
+      "start": 66,
+      "end": 76,
+      "original": "github.com"
+    }
+  ]
+}

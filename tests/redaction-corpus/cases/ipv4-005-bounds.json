@@ -1,0 +1,19 @@
+{
+  "id": "ipv4-005-bounds",
+  "source": "synthesized",
+  "input": "Edge cases: 0.0.0.0 and 255.255.255.255 should both match.",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 12,
+      "end": 19,
+      "original": "0.0.0.0"
+    },
+    {
+      "type": "ipv4",
+      "start": 24,
+      "end": 39,
+      "original": "255.255.255.255"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sweep-017-userpath-multi",
+  "source": "synthesized",
+  "input": "/Users/alice/dev and /Users/alice/Downloads both used by alice.",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 7,
+      "end": 12,
+      "original": "alice"
+    },
+    {
+      "type": "user path",
+      "start": 28,
+      "end": 33,
+      "original": "alice"
+    }
+  ]
+}

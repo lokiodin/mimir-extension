@@ -1,0 +1,13 @@
+{
+  "id": "userpath-003-windows",
+  "source": "synthesized",
+  "input": "Loaded from C:\\Users\\carol\\AppData\\Local\\Temp\\",
+  "expected": [
+    {
+      "type": "user path",
+      "start": 21,
+      "end": 26,
+      "original": "carol"
+    }
+  ]
+}

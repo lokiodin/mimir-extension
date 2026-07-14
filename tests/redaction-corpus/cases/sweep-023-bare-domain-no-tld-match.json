@@ -1,0 +1,6 @@
+{
+  "id": "sweep-023-bare-domain-no-tld-match",
+  "source": "synthesized",
+  "input": "Search reports.local for file index.",
+  "expected": []
+}

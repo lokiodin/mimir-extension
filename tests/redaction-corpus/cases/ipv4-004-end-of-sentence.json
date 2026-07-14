@@ -1,0 +1,13 @@
+{
+  "id": "ipv4-004-end-of-sentence",
+  "source": "synthesized",
+  "input": "The attacker connected from 1.2.3.4. We blocked them.",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 28,
+      "end": 35,
+      "original": "1.2.3.4"
+    }
+  ]
+}

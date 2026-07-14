@@ -1,0 +1,6 @@
+{
+  "id": "sweep-020-negative-hex-soup",
+  "source": "synthesized",
+  "input": "Hash: a1b2c3d4e5f60718293a4b5c6d7e8f90 (md5 of payload). Not a token.",
+  "expected": []
+}

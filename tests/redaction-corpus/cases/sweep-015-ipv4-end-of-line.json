@@ -1,0 +1,13 @@
+{
+  "id": "sweep-015-ipv4-end-of-line",
+  "source": "synthesized",
+  "input": "Last seen IP: 198.51.100.99",
+  "expected": [
+    {
+      "type": "ipv4",
+      "start": 14,
+      "end": 27,
+      "original": "198.51.100.99"
+    }
+  ]
+}

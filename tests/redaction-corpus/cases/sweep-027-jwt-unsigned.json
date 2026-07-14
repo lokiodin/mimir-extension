@@ -1,0 +1,13 @@
+{
+  "id": "sweep-027-jwt-unsigned",
+  "source": "synthesized",
+  "input": "Test header: eyJhbGciOiJub25lIn0.eyJzdWIiOiJndWVzdCJ9. for debugging",
+  "expected": [
+    {
+      "type": "jwt",
+      "start": 13,
+      "end": 54,
+      "original": "eyJhbGciOiJub25lIn0.eyJzdWIiOiJndWVzdCJ9."
+    }
+  ]
+}
