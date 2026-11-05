@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.9 |
-| Document Version | 2.16 |
+| Document Version | 2.17 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.17** — §10 markdown image rule corrected to match shipped behavior: images render without a `src` (alt text only). The documented "`data:` only" rule never held — `rehype-sanitize`'s default `src` protocols (http/https) and react-markdown's default `urlTransform` both drop `data:` URLs. No code change.
 - **2.16** — §8: the service worker writes every `analysis.history` entry. The popup/window "Analyze" button sends an `analysis.run` message (`AnalysisRunRequest` in `src/modules/analysis/types.ts`); the SW runs the AI call, writes the entry (success or failure), and returns it. Fixes popup-initiated runs dropping their entry when the call failed or when the popup closed mid-flight. "Clear log analysis history" is still a direct UI write.
 - **2.15** — §9: the `settings` storage key becomes single-writer. UI surfaces send a `settings.update` message (`SettingsUpdateRequest` in `src/storage/types.ts`); the SW applies patches via the locked `updateSettings`. New `requestSettingsUpdate` helper in `src/storage/manager.ts` for UI callers. Fixes cross-context read-modify-write races dropping settings patches.
 - **2.14** — §6 canonical-indicator rule refined: URLs keep their case; ip/domain/hash remain trimmed + lowercased. Lowercasing a URL changed its identity (case-sensitive path/query), so VirusTotal lookups hit the wrong record. Shared `canonicalizeIndicator()` in `src/background/cti-types.ts` is now the single implementation used by the UI, the three provider clients, and the history upsert.
@@ -351,7 +352,7 @@ State management:
 - **Zustand** for cross-module state (active module, settings, current redaction session).
 - **React Query** for service-worker-mediated async (CTI lookups, AI calls).
 
-Markdown rendering: `react-markdown` with `rehype-sanitize`, raw HTML stripped, image URLs restricted to `data:` (prevents an AI response from triggering image-load exfil — a sensible default that costs nothing, not an enforced safety control).
+Markdown rendering: `react-markdown` with `rehype-sanitize`, raw HTML stripped, images rendered without a `src` — alt text only, no URL of any scheme loads (prevents an AI response from triggering image-load exfil — a sensible default that costs nothing, not an enforced safety control).
 
 Mermaid rendering: client-side, in a try/catch that surfaces syntax errors as inline text rather than crashing.
 

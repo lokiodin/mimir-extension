@@ -5,8 +5,11 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { MermaidView } from "@/components/MermaidView";
 import { liftLooseMermaid, stripOuterFence } from "@/components/markdown-text";
 
-// Sanitize schema: defaults plus a stricter image src filter (data: only).
-// See TECHNICAL_DESIGN.md §10.
+// Sanitize schema: no image src survives, so <img> renders as alt text only
+// and an AI response cannot trigger an image-load exfil (TECHNICAL_DESIGN.md
+// §10). The /^data:/ filter below is the only thing dropping http(s) — keep
+// it. data: is dropped twice over: by the default `src` protocol allowlist
+// (http/https) and by react-markdown's default urlTransform.
 const SCHEMA = {
   ...defaultSchema,
   attributes: {
