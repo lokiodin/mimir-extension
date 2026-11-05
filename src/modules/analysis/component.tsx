@@ -4,35 +4,27 @@ import { MarkdownView } from "@/components/MarkdownView";
 import { CopyIconButton } from "@/components/CopyIconButton";
 import { useSettings } from "@/storage/context";
 import { useMimirStore } from "@/store";
-import {
-  getAnalysisHistory,
-  pushAnalysisHistory,
-} from "@/modules/analysis/history";
+import { getAnalysisHistory } from "@/modules/analysis/history";
 import { AnalysisHistoryPane } from "@/modules/analysis/history-pane";
-import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
 import type {
-  AiCompleteRequest,
-  AiCompleteResponse,
-  AiCompleteSuccess,
-} from "@/background/ai-types";
+  AnalysisHistoryEntry,
+  AnalysisRunRequest,
+  AnalysisRunResponse,
+} from "@/modules/analysis/types";
 import { resolveAnalysisLanguage } from "@/modules/analysis/language";
 import type { AnalysisLanguage } from "@/storage/types";
 
-const FEATURE_ID = "log-analysis";
-
-async function sendComplete(
-  req: AiCompleteRequest,
-): Promise<AiCompleteSuccess> {
+// The SW runs the call and writes the history entry (success or failure), so
+// closing the popup mid-flight does not lose the result. A throw here means
+// the SW itself never answered, so there is no entry to show.
+async function sendRun(req: AnalysisRunRequest): Promise<AnalysisHistoryEntry> {
   const response = (await chrome.runtime.sendMessage(req)) as
-    | AiCompleteResponse
+    | AnalysisRunResponse
     | undefined;
   if (!response) {
     throw new Error("No response from service worker");
   }
-  if (!response.ok) {
-    throw new Error(response.error);
-  }
-  return response;
+  return response.entry;
 }
 
 interface CurrentView {
@@ -82,18 +74,17 @@ export const AnalysisComponent: React.FC = () => {
     setLanguage(resolveAnalysisLanguage(settings));
   }, [settings]);
 
-  const mutation = useMutation<AiCompleteSuccess, Error, AiCompleteRequest>({
-    mutationFn: sendComplete,
-    onSuccess: async (result, variables) => {
-      const entry: AnalysisHistoryEntry = {
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        input: variables.userInput,
-        response: result.response,
-        providerLabel: result.providerLabel,
-        providerType: result.providerType,
-      };
-      await pushAnalysisHistory(entry);
+  const mutation = useMutation<
+    AnalysisHistoryEntry,
+    Error,
+    AnalysisRunRequest
+  >({
+    mutationFn: sendRun,
+    onSuccess: (entry) => {
+      if (entry.error) {
+        setErrorMessage(entry.response);
+        return;
+      }
       setCurrent({
         id: entry.id,
         timestamp: entry.timestamp,
@@ -123,9 +114,8 @@ export const AnalysisComponent: React.FC = () => {
     if (!providerId) return;
     setErrorMessage(null);
     mutation.mutate({
-      type: "ai.complete",
+      type: "analysis.run",
       providerId,
-      featureId: FEATURE_ID,
       userInput: input,
       language,
     });

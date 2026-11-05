@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisHistoryEntry } from "../../../src/modules/analysis/types";
-import { ANALYSIS_OPEN_ON_NEXT_POPUP_KEY } from "../../../src/modules/analysis/types";
+import {
+  ANALYSIS_OPEN_ON_NEXT_POPUP_KEY,
+  isAnalysisRunRequest,
+} from "../../../src/modules/analysis/types";
 
 interface ExtensionContext {
   contextType: string;
@@ -287,5 +290,121 @@ describe("runAnalysisInBackground — auto-open marker", () => {
     expect(stub.openPopupCalls).toBe(0);
     expect(stub.storage.get(ANALYSIS_OPEN_ON_NEXT_POPUP_KEY)).toBeUndefined();
     expect(stub.storage.get("analysis.history")).toBeUndefined();
+  });
+});
+
+async function loadSurfaceRunner(
+  completeImpl: (...args: unknown[]) => Promise<unknown>,
+) {
+  vi.resetModules();
+  vi.doMock("../../../src/background/ai-client", () => ({
+    complete: completeImpl,
+  }));
+  const { runAnalysisFromSurface } = await import(
+    "../../../src/modules/analysis/background"
+  );
+  return runAnalysisFromSurface;
+}
+
+describe("runAnalysisFromSurface — SW-owned history write", () => {
+  it("writes the success entry and returns it, without auto-open", async () => {
+    const stub = installChromeStub({ contexts: [] });
+    seedSettings(stub, {
+      aiProviders: [{ id: "p1", type: "ollama", label: "Local" }],
+    });
+    const complete = vi.fn(async () => ({
+      ok: true,
+      response: "ANALYZED",
+      providerLabel: "Local (ollama)",
+      providerType: "ollama",
+    }));
+    const run = await loadSurfaceRunner(complete);
+    const { entry } = await run({
+      type: "analysis.run",
+      providerId: "p1",
+      userInput: "sshd: Failed password",
+      language: "fr",
+    });
+
+    expect(complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "ai.complete",
+        providerId: "p1",
+        featureId: "log-analysis",
+        userInput: "sshd: Failed password",
+        language: "fr",
+      }),
+    );
+    expect(entry.error).toBeUndefined();
+    expect(entry.response).toBe("ANALYZED");
+    const history = stub.storage.get("analysis.history") as {
+      entries: AnalysisHistoryEntry[];
+    };
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0].id).toBe(entry.id);
+    expect(stub.openPopupCalls).toBe(0);
+    expect(stub.storage.get(ANALYSIS_OPEN_ON_NEXT_POPUP_KEY)).toBeUndefined();
+  });
+
+  it("records a failed call as an error entry labelled with the provider", async () => {
+    const stub = installChromeStub({ contexts: [] });
+    seedSettings(stub, {
+      aiProviders: [{ id: "p1", type: "ollama", label: "Local" }],
+    });
+    const run = await loadSurfaceRunner(async () => ({
+      ok: false,
+      error: "Ollama: 403",
+    }));
+    const { entry } = await run({
+      type: "analysis.run",
+      providerId: "p1",
+      userInput: "x",
+    });
+
+    expect(entry.error).toBe(true);
+    expect(entry.response).toBe("Ollama: 403");
+    expect(entry.providerLabel).toBe("Local");
+    const history = stub.storage.get("analysis.history") as {
+      entries: AnalysisHistoryEntry[];
+    };
+    expect(history.entries[0].id).toBe(entry.id);
+  });
+});
+
+describe("isAnalysisRunRequest", () => {
+  it("accepts a well-formed request with or without language", () => {
+    expect(
+      isAnalysisRunRequest({
+        type: "analysis.run",
+        providerId: "p1",
+        userInput: "x",
+      }),
+    ).toBe(true);
+    expect(
+      isAnalysisRunRequest({
+        type: "analysis.run",
+        providerId: "p1",
+        userInput: "x",
+        language: "en",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects wrong type, missing fields, and unknown language", () => {
+    expect(isAnalysisRunRequest(null)).toBe(false);
+    expect(
+      isAnalysisRunRequest({ type: "ai.complete", providerId: "p1", userInput: "x" }),
+    ).toBe(false);
+    expect(isAnalysisRunRequest({ type: "analysis.run", userInput: "x" })).toBe(
+      false,
+    );
+    expect(
+      isAnalysisRunRequest({
+        type: "analysis.run",
+        providerId: "p1",
+        userInput: "x",
+        language: "de",
+      }),
+    ).toBe(false);
   });
 });

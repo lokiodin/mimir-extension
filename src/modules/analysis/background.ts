@@ -12,12 +12,17 @@ import {
 import { isAnyMimirSurfaceOpen } from "@/background/surface-state";
 import { openPopup } from "@/browser-compat/menus";
 import { getSettings, storageSet } from "@/storage/manager";
-import { pushAnalysisHistory } from "@/modules/analysis/history";
+import {
+  buildAnalysisEntry,
+  pushAnalysisHistory,
+} from "@/modules/analysis/history";
 import { resolveAnalysisLanguage } from "@/modules/analysis/language";
 import {
   ANALYSIS_OPEN_ON_NEXT_POPUP_KEY,
   type AnalysisHistoryEntry,
   type AnalysisOpenOnNextPopup,
+  type AnalysisRunRequest,
+  type AnalysisRunResponse,
 } from "@/modules/analysis/types";
 import type { AiProviderConfig } from "@/storage/types";
 
@@ -42,6 +47,27 @@ async function maybeAutoOpenForBackground(entryId: string): Promise<void> {
   const marker: AnalysisOpenOnNextPopup = { entryId, ts: Date.now() };
   await storageSet(ANALYSIS_OPEN_ON_NEXT_POPUP_KEY, marker);
   await openPopup();
+}
+
+// Surface-initiated run (popup / window "Analyze"). The SW owns the history
+// write so a surface closing mid-flight cannot drop the entry. No badge or
+// auto-open: the user started it from an open surface, and the newest entry
+// is auto-restored on the next open.
+export async function runAnalysisFromSurface(
+  req: AnalysisRunRequest,
+): Promise<AnalysisRunResponse> {
+  const settings = await getSettings();
+  const result = await complete({
+    type: "ai.complete",
+    providerId: req.providerId,
+    featureId: FEATURE_ID,
+    userInput: req.userInput,
+    language: req.language,
+  });
+  const provider = settings.aiProviders.find((p) => p.id === req.providerId);
+  const entry = buildAnalysisEntry(req.userInput, result, provider);
+  await pushAnalysisHistory(entry);
+  return { entry };
 }
 
 export async function runAnalysisInBackground(
@@ -80,30 +106,9 @@ export async function runAnalysisInBackground(
     });
 
     const provider = settings.aiProviders.find((p) => p.id === providerId);
-    if (result.ok) {
-      const entry: AnalysisHistoryEntry = {
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        input: selection,
-        response: result.response,
-        providerLabel: result.providerLabel,
-        providerType: result.providerType,
-      };
-      await pushAnalysisHistory(entry);
-      await maybeAutoOpenForBackground(entry.id);
-    } else {
-      const entry: AnalysisHistoryEntry = {
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        input: selection,
-        response: result.error,
-        providerLabel: provider?.label ?? "(unknown)",
-        providerType: provider?.type ?? "ollama",
-        error: true,
-      };
-      await pushAnalysisHistory(entry);
-      await maybeAutoOpenForBackground(entry.id);
-    }
+    const entry = buildAnalysisEntry(selection, result, provider);
+    await pushAnalysisHistory(entry);
+    await maybeAutoOpenForBackground(entry.id);
   } finally {
     decrementBadgePending();
     await refreshBadge();

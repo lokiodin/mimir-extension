@@ -24,6 +24,8 @@ import {
 } from "@/background/context-menus";
 import { onMenuClicked } from "@/browser-compat/menus";
 import { refreshBadge } from "@/background/badge";
+import { runAnalysisFromSurface } from "@/modules/analysis/background";
+import { isAnalysisRunRequest } from "@/modules/analysis/types";
 import type { Settings, SettingsUpdateRequest } from "@/storage/types";
 import { CTI_PROVIDERS, INDICATOR_TYPES } from "@/background/cti-types";
 import type {
@@ -199,6 +201,11 @@ chrome.runtime.onMessage.addListener(
 
     if (isAiCompleteRequest(message)) {
       aiComplete(message).then(sendResponse);
+      return true;
+    }
+
+    if (isAnalysisRunRequest(message)) {
+      runAnalysisFromSurface(message).then(sendResponse);
       return true;
     }
 

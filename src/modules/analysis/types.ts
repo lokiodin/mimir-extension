@@ -1,4 +1,31 @@
-import type { AiProviderConfig } from "@/storage/types";
+import type { AiProviderConfig, AnalysisLanguage } from "@/storage/types";
+
+// Popup/window "Analyze" request. The SW runs the AI call and writes the
+// history entry itself, so the result is recorded even if the surface closes
+// mid-flight (the popup dies on focus loss). See TECHNICAL_DESIGN.md §8.
+export interface AnalysisRunRequest {
+  type: "analysis.run";
+  providerId: string;
+  userInput: string;
+  language?: AnalysisLanguage;
+}
+
+export interface AnalysisRunResponse {
+  entry: AnalysisHistoryEntry;
+}
+
+export function isAnalysisRunRequest(
+  value: unknown,
+): value is AnalysisRunRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.type === "analysis.run" &&
+    typeof v.providerId === "string" &&
+    typeof v.userInput === "string" &&
+    (v.language === undefined || v.language === "en" || v.language === "fr")
+  );
+}
 
 export interface AnalysisHistoryEntry {
   id: string;

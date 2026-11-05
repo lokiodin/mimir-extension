@@ -3,6 +3,8 @@
 
 import { storageGet, storageSet, withStorageLock } from "@/storage/manager";
 import type { AnalysisHistoryEntry } from "@/modules/analysis/types";
+import type { AiCompleteResponse } from "@/background/ai-types";
+import type { AiProviderConfig } from "@/storage/types";
 
 const HISTORY_KEY = "analysis.history";
 export const ANALYSIS_HISTORY_MAX = 10;
@@ -21,6 +23,32 @@ async function writeAnalysisHistory(
   entries: AnalysisHistoryEntry[],
 ): Promise<void> {
   await storageSet(HISTORY_KEY, { entries } satisfies HistoryShape);
+}
+
+// Shared by the popup and right-click paths so both record failures, not just
+// successes (TD §8: failed analyses are history entries with `error: true`).
+// `provider` labels failed entries; successes use the SW-resolved label.
+export function buildAnalysisEntry(
+  input: string,
+  result: AiCompleteResponse,
+  provider: Pick<AiProviderConfig, "label" | "type"> | undefined,
+): AnalysisHistoryEntry {
+  const base = { id: crypto.randomUUID(), timestamp: Date.now(), input };
+  if (result.ok) {
+    return {
+      ...base,
+      response: result.response,
+      providerLabel: result.providerLabel,
+      providerType: result.providerType,
+    };
+  }
+  return {
+    ...base,
+    response: result.error,
+    providerLabel: provider?.label ?? "(unknown)",
+    providerType: provider?.type ?? "ollama",
+    error: true,
+  };
 }
 
 export async function pushAnalysisHistory(

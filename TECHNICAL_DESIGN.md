@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Companion Doc | `PRD.md` v3.9 |
-| Document Version | 2.13 |
+| Document Version | 2.16 |
 | Status | Approved scope for MVP |
 | Scope | MVP (v1.0) with forward-looking notes for v1.1+ |
 
 ### Changelog
+- **2.16** — §8: the service worker writes every `analysis.history` entry. The popup/window "Analyze" button sends an `analysis.run` message (`AnalysisRunRequest` in `src/modules/analysis/types.ts`); the SW runs the AI call, writes the entry (success or failure), and returns it. Fixes popup-initiated runs dropping their entry when the call failed or when the popup closed mid-flight. "Clear log analysis history" is still a direct UI write.
 - **2.15** — §9: the `settings` storage key becomes single-writer. UI surfaces send a `settings.update` message (`SettingsUpdateRequest` in `src/storage/types.ts`); the SW applies patches via the locked `updateSettings`. New `requestSettingsUpdate` helper in `src/storage/manager.ts` for UI callers. Fixes cross-context read-modify-write races dropping settings patches.
 - **2.14** — §6 canonical-indicator rule refined: URLs keep their case; ip/domain/hash remain trimmed + lowercased. Lowercasing a URL changed its identity (case-sensitive path/query), so VirusTotal lookups hit the wrong record. Shared `canonicalizeIndicator()` in `src/background/cti-types.ts` is now the single implementation used by the UI, the three provider clients, and the history upsert.
 - **2.13** — §3 keepalive pattern changed from `chrome.alarms` to an in-worker `setInterval` pinging `chrome.runtime.getPlatformInfo()` every 20s while calls are in flight. Chrome clamps alarm periods to ≥0.5 min (≥1 min before Chrome 120), which lands on or after the 30s idle deadline — the alarm-based keepalive could not actually hold the worker. The now-unused `alarms` permission is removed from both manifests.
@@ -304,9 +305,11 @@ The Log Analysis module keeps a local history of the **last 10 analyses**. Each 
 
 - `timestamp`
 - `input` — the raw log content the user submitted
-- `response` — the AI's Markdown response (or, for failed background runs, the error message)
+- `response` — the AI's Markdown response (or, for failed runs, the error message)
 - `provider` — which AI provider was used (so the user can see e.g. "this was Ollama llama3 vs. Anthropic")
 - `error?: boolean` — present and `true` when the analysis failed (e.g. no provider configured, AI endpoint unreachable, or provider returned a non-2xx). Failed entries render distinctly in the history pane and main view; `response` carries the error message. Optional and backwards-compatible.
+
+**Entries are written by the service worker, for both entry points.** Right-click runs already execute in the SW (§4.3). The popup/window "Analyze" button sends an `analysis.run` message; the SW runs the AI call, pushes the entry (failed runs included, with `error: true`), and replies with it so the surface can render it. A surface closing mid-flight (the popup closes on focus loss) therefore never loses the result: the entry lands in history and is auto-restored on the next open. Popup-initiated runs do not touch the badge or the auto-open marker.
 
 Eviction is straightforward FIFO at the cap (oldest goes when an 11th would be added). No TTL — entries live until they're pushed out by newer ones or the user clears the history.
 
