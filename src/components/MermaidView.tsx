@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import type { Mermaid } from "mermaid";
 
 let initialized = false;
-function ensureInit(): void {
+function ensureInit(mermaid: Mermaid): void {
   if (initialized) return;
   initialized = true;
   mermaid.initialize({
@@ -40,12 +40,16 @@ export const MermaidView: React.FC<{ chart: string }> = ({ chart }) => {
       if (containerRef.current) containerRef.current.innerHTML = "";
       return;
     }
-    ensureInit();
     let cancelled = false;
     const id = nextId();
     setRendered(false);
     (async () => {
       try {
+        // Loaded on first diagram so mermaid stays out of the popup/window
+        // entry bundles. Webpack emits it as a local chunk; nothing remote.
+        const { default: mermaid } = await import("mermaid");
+        if (cancelled) return;
+        ensureInit(mermaid);
         const { svg } = await mermaid.render(id, trimmed);
         if (cancelled) return;
         if (containerRef.current) {
