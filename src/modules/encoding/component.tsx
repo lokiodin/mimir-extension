@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { OPERATIONS, type OperationId } from "@/modules/encoding/operations";
+import { createDebouncedWriter } from "@/modules/encoding/persist";
 import { storageGet, storageSet } from "@/storage/manager";
 import {
   TextTransformPanel,
@@ -35,7 +36,11 @@ export const EncodingComponent: React.FC = () => {
   const [operationId, setOperationId] = useState<OperationId>("base64-encode");
   const [input, setInput] = useState<string>("");
   const [hydrated, setHydrated] = useState<boolean>(false);
-  const persistTimer = useRef<number | null>(null);
+  const [writer] = useState(() =>
+    createDebouncedWriter<PersistedState>((state) => {
+      void storageSet(STORAGE_KEY, state);
+    }, PERSIST_DEBOUNCE_MS),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -58,22 +63,12 @@ export const EncodingComponent: React.FC = () => {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (persistTimer.current !== null) {
-      window.clearTimeout(persistTimer.current);
-    }
-    persistTimer.current = window.setTimeout(() => {
-      void storageSet(STORAGE_KEY, {
-        operationId,
-        input,
-      } satisfies PersistedState);
-    }, PERSIST_DEBOUNCE_MS);
-    return () => {
-      if (persistTimer.current !== null) {
-        window.clearTimeout(persistTimer.current);
-        persistTimer.current = null;
-      }
-    };
-  }, [hydrated, operationId, input]);
+    writer.schedule({ operationId, input });
+  }, [hydrated, operationId, input, writer]);
+
+  // Flush, not cancel, on unmount: switching module inside the debounce
+  // window would otherwise drop the last edit.
+  useEffect(() => () => writer.flush(), [writer]);
 
   const pendingInput = useMimirStore((s) => s.pendingInput);
   const setPendingInput = useMimirStore((s) => s.setPendingInput);
