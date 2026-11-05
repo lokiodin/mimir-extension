@@ -22,6 +22,7 @@ export default merge(common, {
         {
           from: path.resolve(__dirname, "icons"),
           to: "icons",
+          globOptions: { ignore: ["**/.DS_Store"] },
         },
       ],
     }),
