@@ -12,6 +12,15 @@ import type {
   AnalysisRunResponse,
 } from "@/modules/analysis/types";
 import { resolveAnalysisLanguage } from "@/modules/analysis/language";
+import {
+  isMacPlatform,
+  isSubmitShortcut,
+  submitShortcutLabel,
+} from "@/modules/analysis/submit-shortcut";
+
+const SUBMIT_HINT = submitShortcutLabel(
+  isMacPlatform(typeof navigator === "undefined" ? undefined : navigator),
+);
 import type { AnalysisLanguage } from "@/storage/types";
 
 // The SW runs the call and writes the history entry (success or failure), so
@@ -226,7 +235,16 @@ export const AnalysisComponent: React.FC = () => {
               disabled={isLoading || input.trim() === "" || !providerId}
               className="shrink-0 px-3 py-1 bg-blue-900 text-blue-100 rounded text-sm hover:bg-blue-800 disabled:opacity-50"
             >
-              {isLoading ? "Analyzing…" : "Analyze"}
+              {isLoading ? (
+                "Analyzing…"
+              ) : (
+                <>
+                  Analyze{" "}
+                  <kbd className="ml-1 font-sans text-xs text-blue-300">
+                    {SUBMIT_HINT}
+                  </kbd>
+                </>
+              )}
             </button>
           </div>
 
@@ -238,6 +256,11 @@ export const AnalysisComponent: React.FC = () => {
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (!isSubmitShortcut(e)) return;
+                  e.preventDefault();
+                  if (!isLoading) handleAnalyze();
+                }}
                 placeholder="Paste log content here. Sent as-is to the configured AI — no automatic redaction."
                 spellCheck={false}
                 className="min-h-15 max-h-72 bg-gray-800 text-gray-100 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-gray-500 resize-y"
